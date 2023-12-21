@@ -1,0 +1,78 @@
+--@name HoloSnakeProp
+--@author Feven Kitsune
+--@server
+--@model models/props_lab/harddrive02.mdl
+
+local holos = {}
+--local voxel_size = 3.063
+local voxel_size = 11.875
+--local voxel_size = 379.666
+local refresh_rate = .05
+local length = 100
+local direction = Vector(1,0,0)
+
+function change_direction()
+    local direction_change_probability = 5
+    local direction_rng = math.random(direction_change_probability)
+    
+    if (direction_rng == 1) then
+        local new_direction = math.random(6)
+        if (new_direction == 1) then direction:rotate(Angle(90, 0, 0))
+        elseif (new_direction == 2) then direction:rotate(Angle(-90, 0, 0))
+        elseif (new_direction == 3) then direction:rotate(Angle(0, 90, 0))
+        elseif (new_direction == 4) then direction:rotate(Angle(0, -90, 0))
+        elseif (new_direction == 5) then direction:rotate(Angle(0, 0, 90))
+        elseif (new_direction == 6) then direction:rotate(Angle(0, 0, -90))
+        end
+        direction:round()
+    end
+end
+
+function main_loop()
+    local new_pos
+    for i=1,#holos-1,1 do
+        holos[i]:setPos(holos[i+1]:getPos())
+        holos[i]:setColor(Color(holos[i]:getPos()[1]%255, holos[i]:getPos()[2]%255, holos[i]:getPos()[3]%255, 255))
+    end
+    
+    new_pos = holos[#holos]:getPos() + direction*voxel_size
+    while (new_pos:isInWorld() != true) do
+        change_direction()
+        new_pos = holos[#holos]:getPos() + direction*voxel_size
+    end
+    holos[#holos]:setPos(new_pos)
+    holos[#holos]:setColor(Color(holos[#holos]:getPos()[1]%255, holos[#holos]:getPos()[2]%255, holos[#holos]:getPos()[3]%255, 255))
+
+    change_direction()
+    
+    timer.simple(refresh_rate, main_loop)
+end
+
+for k=1,length,1 do
+    holos[#holos+1] = {
+        pos = chip():getPos() + chip():getUp() * 20 + Vector(k*(voxel_size*1),0,0),
+        angle = Angle(),
+        model = "models/hunter/blocks/cube025x025x025.mdl",
+        --model = "models/hunter/plates/plate.mdl"
+        --model = "models/hunter/blocks/cube8x8x8.mdl"
+    }
+end
+
+local k
+hook.add("tick", "holoSpawner", function()
+    while (prop.canSpawn() == true) do
+        local v
+        k, v = next(holos,k)
+        --print(tostring(k) .. " = " .. tostring(v))
+        if (v == nil) then
+            print("Holos done spawning.")
+            hook.remove("tick", "holoSpawner")
+            timer.simple(refresh_rate, main_loop)
+            return
+        end
+        holos[k] = prop.create(v.pos, v.angle, v.model, true), v.direction
+        holos[k]:setMaterial("models/debug/debugwhite")
+        holos[k]:setColor(Color(v.pos[1]%255, v.pos[2]%255, v.pos[3]%255, 255))
+    end
+end)
+

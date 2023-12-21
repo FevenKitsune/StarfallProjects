@@ -1,0 +1,73 @@
+--@name MusicPlayer 2
+--@author Sparky, Feven
+--@model models/props_lab/citizenradio.mdl
+
+
+if SERVER then
+    hook.add("PlayerSay", "Hey", function(ply, txt)
+        if ply==owner() and txt:sub(1, 6)=="!song " then
+            net.start("playSong")
+            net.writeString(txt:sub(7))
+            net.send()
+
+            return ""
+        end
+    end)
+else
+    local function loadSong(videoID)
+        if song then song:stop() end
+
+        
+        http.get("https://server.twigbox.net/ytdl?get=" .. tostring(videoID), function(body, length, headers, code)
+            print("HTTP RESPONSE:")
+            print(body)
+            if (body == nil) then
+                print("Response error! Please try again.")
+                return
+            end
+            response = json.decode(body)
+            print(response["file"])
+            
+            local trimResponse = string.replace(response["file"], ":443", "")
+        
+            bass.loadURL(response["file"], "3d noblock noplay", function(snd, err, errtxt)
+                if snd then
+                    song = snd
+                    snd:setFade(500, 10000)
+                    snd:setVolume(1.5)
+                    pcall(snd.setLooping, snd, false) -- pcall in case of audio stream
+
+                    hook.add("think", "snd", function()
+                        if isValid(snd) and isValid(chip()) then
+                            snd:setPos(chip():getPos())
+                        end
+                    end)
+                else
+                    print(errtxt)
+                end
+            end)
+        
+        end)
+
+        url = nil
+    end
+
+    net.receive("playSong", function(len)
+        videoID = net.readString()
+        
+        if not hasPermission("bass.loadURL", url) then
+            print("Press E to grant URL sound permission")
+            return
+        end    
+        
+        loadSong(videoID)
+    end)
+    
+    setupPermissionRequest({"bass.loadURL"}, "URL sounds from external sites", true)
+
+    hook.add("permissionrequest", "permission", function()
+        if url and hasPermission("bass.loadURL", url) then
+            loadSong(url)
+        end
+    end)
+end

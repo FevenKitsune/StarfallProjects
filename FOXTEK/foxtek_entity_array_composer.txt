@@ -1,0 +1,23 @@
+--@name FOXTEK Entity Array Composer
+--@author FOXTEK (Feven Kitsune)
+--@server
+
+local EntityCount = 1
+local OutputArray = {}
+
+local Inputs = {}
+for i = 1, EntityCount, 1 do
+    Inputs["Entity" .. tostring(i)] = "entity"
+end
+
+wire.adjustPorts(
+    Inputs,
+    {R = "array"}
+)
+
+hook.add("Input", "HandleEntityInput", function(Name, Value)
+    if Value:isValid() then
+        OutputArray[tonumber(string.sub(Name, 7))] = wire.ports[Name]
+        wire.ports.R = OutputArray
+    end
+end)

@@ -1,0 +1,319 @@
+--@name Danzig ACF (SF)
+--@author Ported by Feven
+--@server
+
+local NumGears = 5
+local LL1 = 130
+local LL2 = 130
+
+wire.adjustPorts({
+    Pod = "wirelink",
+    Engine = "wirelink",
+    Engine1 = "wirelink",
+    Trans = "wirelink",
+    FDiff = "wirelink",
+    RDiff = "wirelink",
+    Alt = "number",
+    Sensor = "number",
+    Shift = "number",
+    S = "number",
+    FuelL = "number"
+}, {
+    Gear = "number",
+    M1 = "number",
+    M2 = "number",
+    Throttle = "number",
+    Effect = "number",
+    Average = "number",
+    Light = "number",
+    On = "number",
+    Brake = "number",
+    GC = "number",
+    Cam = "number",
+    BL = "number",
+    LL = "number",
+    RE = "number",
+    Fuel = "number",
+    LightA = "number",
+    Ind = "number"
+})
+
+local Active = 0
+local W = 0
+local S = 0
+local R = 0
+local F = 0
+local lF -- edge detection
+local Shift = 0
+local Space = 0
+local M1 = 0
+local M2 = 0
+local RPM = 0
+local lAlt = 0 -- edge detection
+local Alt = 0
+
+local BT1 = 0
+local BT = 0
+local CT = 0
+
+local Count = 0
+local Pitch = 0
+
+local Idle = 0
+local Forward = 0
+local Reverse = 0
+local Brake = 0
+local Clutch = 0
+local lStart -- edge detection
+local Start = 0
+local GUp
+local lGUp -- edge detection
+local GDn
+local lGDn -- edge detection
+
+-- OUTPUT VARIABLES
+local Gear = 1
+local lGear = 1 -- edge trigger
+local M1 = 0
+local M2 = 0
+local Throttle = 0
+local Effect = 0
+local Average = 0
+local Light = 0
+local On = 0
+local Brake = 0
+local GC = 0
+local Cam = 0
+local BL = 0
+local LL = 0
+local RE = 0
+local Fuel = 1
+local LightA = 0
+local Ind = 0
+
+hook.add("tick", "update_wirelink_variables", function()
+    if not wire.ports.Pod then
+        return
+    end
+    Active = wire.ports.Pod["Active"]
+    W = wire.ports.Pod["W"]
+    S = wire.ports.Pod["S"]
+    R = wire.ports.Pod["R"]
+    M1 = wire.ports.Pod["Mouse1"]
+    M2 = wire.ports.Pod["Mouse2"]
+    Space = wire.ports.Pod["Space"]
+    lF = F
+    F = wire.ports.Pod["Light"]
+    Shift = wire.ports.Pod["Shift"]
+    lAlt = Alt
+    Alt = wire.ports.Pod["Alt"]
+    
+    Idle = Active
+    Forward = W
+    Reverse = S
+    Brake = Space
+    lStart = Start
+    Start = R
+    
+    lGUp = GUp
+    GUp = M1
+    
+    lGDn = GDn
+    GDn = M2
+    
+    -- TODO: How do I set the value of a Wireport entity?
+    if wire.ports.Engine then
+        RPM = wire.ports.Engine["RPM"]
+        wire.ports.Engine["Active"] = On
+        wire.ports.Engine["Throttle"] = Throttle
+    end
+    
+    if wire.ports.Engine1 then
+        wire.ports.Engine1["Active"] = On
+        wire.ports.Engine1["Throttle"] = Throttle
+    end
+    
+    if wire.ports.Trans then
+        if S == 1 then
+            wire.ports.Trans["Gear"] = 6
+        else
+            wire.ports.Trans["Gear"] = Gear
+        end
+    end
+    
+    if wire.ports.FDiff then
+        wire.ports.FDiff["Brake"] = BT1
+        wire.ports.FDiff["Clutch"] = CT
+    end
+    
+    if wire.ports.RDiff then
+        wire.ports.RDiff["Brake"] = BT
+        wire.ports.RDiff["Clutch"] = CT
+    end
+    
+    
+end)
+
+hook.add("tick", "update_output_variables", function()
+    -- ASSIGN OUTPUT VARIABLES
+    wire.ports.Gear = Gear
+    wire.ports.M1 = M1
+    wire.ports.M2 = M2
+    wire.ports.Throttle = Throttle
+    wire.ports.Effect = Effect
+    wire.ports.Average = Average
+    wire.ports.Light = Light
+    wire.ports.On = On
+    wire.ports.Brake = Brake
+    wire.ports.GC = GC
+    wire.ports.Cam = Cam
+    wire.ports.BL = BL
+    wire.ports.LL = LL
+    wire.ports.RE = RE
+    wire.ports.Fuel = Fuel
+    wire.ports.LightA = LightA
+    wire.ports.Ind = Ind
+end)
+
+hook.add("tick", "engine_starter", function()
+    if (lStart ~= Start) and Start == 1 then
+        if ( On == 1 ) then
+            On = 0
+        else
+            wire.ports.Engine:entity():emitSound("acf_extra/vehiclefx/starters/starter2.wav")
+            timer.simple(1.1, function()
+                wire.ports.Engine:entity():stopSound("acf_extra/vehiclefx/starters/starter2.wav")
+                On = 1
+            end)
+        end
+    end
+end)
+
+hook.add("tick", "gearshift", function()
+    lGear = Gear
+    
+    if (lGUp ~= GUp) and GUp == 1 then
+        -- print("GEARUP")
+        Gear = math.min(Gear + 1, NumGears)
+    end
+    
+    if (lGDn ~= GDn) and GDn == 1 then
+        Gear = math.max(Gear - 1, 1)
+    end
+    
+    if (lGear ~= Gear) then
+        GC = 1
+        timer.simple(0.25, function()
+            GC = 0
+        end)
+    end
+
+--[[ ORIGINAL E2 CODE
+if (changed(GUp) & GUp) { Gear = min(Gear+1,NumGears) }
+if (changed(GDn) & GDn)
+{
+    Gear = max(Gear-1,1)
+    if( Gear > 1 )
+    {
+    }
+}
+
+if (changed(Gear)) { GC=1, timer("clutch",250) }
+if (clk("clutch")) { GC=0 }
+]]
+end)
+
+hook.add("tick", "systems", function()
+    if (lAlt ~= Alt) and Alt == 1 then
+        Count = Count + 1
+    end
+    
+    if Count == 1 then
+        Light = 1
+        LightA = 0
+        LL = 190
+    end
+    
+    if Count == 2 then
+        Light = 0
+        LightA = 1
+        LL = 190
+    end
+    
+    if Count > 2 then
+        Count = 0
+        Light = 0
+        LightA = 0
+        LL = 0
+    end
+    
+    if On == 0 then
+        Ind = 1
+    else
+        Ind = 0
+    end
+    
+    if Shift and not Shift then -- The original code here makes zero fucking sense. Garbage code. Doesn't even do anything.
+        -- ASKED NEDSTER apparently this is supposed to toggle the camera controller. So I assume this is just a toggle-on, toggle-off sitch?
+        Cam = (Cam == 0 and 1 or 0)
+    end
+    
+    if Sensor == 1 then
+        On = 0
+    end
+    
+    if Brake == 1 then
+        BL = 255
+    else
+        BL = 0
+    end
+    
+    if S == 1 then
+        RE = 255
+    else
+        RE = 0
+    end
+    
+    if Active == 0 then
+        Brake = 1
+    end
+    
+    BT = 4 * Brake
+    BT1 = 2 * Brake
+    CT = (Clutch == 1 or GC == 1 or not (W == 1 or S == 1)) and 1 or 0
+    --print(tonumber(GC == 0))
+    --print(GC)
+    Throttle = (100 + Shift * 25 + Pitch / 10) * (GC == 0 and 1 or 0) * ((Forward == 1 or Reverse == 1) and 1 or 0)
+    if W == 1 or S == 1 then
+        Throttle = (100 + Shift * 25 + Pitch / 10) * (GC == 0 and 1 or 0) * ((Forward == 1 or Reverse == 1) and 1 or 0)
+    end
+        
+--[[ ORIGINAL E2 CODE
+if(changed(Alt)& Alt){
+    Count++
+
+    }
+if(Count==1){Light=1 LightA=0 LL=190}
+if(Count==2){LightA=1 Light=0 LL=190}
+if(Count>2){Count=0 Light=0 LightA=0 LL=0}
+if(On==0){Ind=1}else{Ind=0}
+if(Shift&~Shift){Cam =!Cam}
+if(Sensor){On=0}
+if(Brake){BL=255}else{BL=0}
+if(S){RE=255}else{RE=0}
+if(Active==0){Brake=1}
+
+BT = 4 * Brake
+BT1 = 2 * Brake
+CT = Clutch | GC | !(W|S)
+Throttle = (100+Shift*25+Pitch/10)*!GC*(Forward|Reverse)
+if(W | S) {Throttle = (100+Shift*25+Pitch/10)*!GC*(Forward|Reverse)
+]]
+end)
+
+hook.add("tick", "clutch", function()
+    if (lF ~= F) and F == 1 then
+        Clutch = (Clutch == 0) and 1 or 0
+        -- print(Clutch)
+    end
+end)

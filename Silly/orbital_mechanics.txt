@@ -1,0 +1,65 @@
+--@name Orbit1
+--@author Feven Kitsune
+--@shared
+
+local owner = owner()
+local chip = chip()
+
+local orbiters = {}
+
+local function quotaCheck(n)
+    return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+end
+
+local hmodel = "models/hunter/plates/plate.mdl"
+local hmodel = "models/hunter/misc/sphere025x025.mdl"
+local hmaterial = "models/debug/debugwhite"
+local hscale = Vector(1, 1, 1)
+local hcolor = Color(255,255,255,255)
+
+for i=1,200 do
+    orbiters[#orbiters+1]=holograms.create(owner:getPos(), Angle(), hmodel)
+    orbiters[#orbiters]:setMaterial(hmaterial)
+    orbiters[#orbiters]:setColor(hcolor)
+    orbiters[#orbiters]:setScale(hscale)
+end
+
+local i = 1
+hook.add("think", "CalculatePosition", function()
+    local t = timer.realtime()/7
+    
+    while (quotaCheck(0.5)) do
+    --while true do
+        if i == 201 then
+            i = 1
+            break 
+        end
+        
+        local tidx -- true index
+        local hnewpos
+        -- treat client holograms as if they're an additional 200 holograms in the orbiters array, giving an effective 400 total holograms.
+        if SERVER then
+            tidx = i
+        else
+            tidx = i + 200
+        end
+
+        local x = ((tidx + 20) / 2)
+        * math.sin(t * 2 * math.sin(tidx))
+
+        local y = ((tidx + 20) / 1)
+        * math.cos(t * 3 * math.sin(tidx))
+
+        local z = ((tidx + 20) / 2)
+        * math.sin(t * 4 * math.sin(tidx))
+        --local z = ((tidx + 20) / 2)
+        --* math.sin(tidx * 4)
+    
+        hnewpos = chip:getPos() + Vector(x, y, z)
+
+        orbiters[i]:setPos(hnewpos)
+        
+        orbiters[i]:setColor(Color(math.remap(chip:worldToLocal(hnewpos)[1], -300, 300, 0, 255), 0, 255, 255))
+        i = i + 1
+    end
+end)

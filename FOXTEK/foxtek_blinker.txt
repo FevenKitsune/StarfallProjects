@@ -1,0 +1,30 @@
+--@name FOXTEK Blinker
+--@author FOXTEK (Feven Kitsune)
+--@server
+
+local BLINK_RATE = 2 -- HZ/Cycles/sec
+local OUTPUT = 0
+
+wire.adjustPorts(
+    {I="number"}, -- Inputs
+    {O="number"} -- Outputs
+)
+
+
+hook.add("input", "initialize_timers", function(name, value)
+    if name == "I" and value == 1 then
+        OUTPUT = 1 - OUTPUT
+        wire.ports.O = OUTPUT
+        timer.create("blinker_value", (1 / BLINK_RATE) / 2, 0, function()
+            OUTPUT = 1 - OUTPUT
+            wire.ports.O = OUTPUT
+        end)
+    end
+    
+    if name == "I" and value == 0 then
+        timer.remove("blinker_value")
+        OUTPUT = 0
+        wire.ports.O = 0
+    end
+end)
+        

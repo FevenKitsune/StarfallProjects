@@ -1,0 +1,55 @@
+--@name Cycle Fire v1
+--@author Feven Kitsune
+--@server
+
+local outputs = {
+    CycleSlot1 = "number",
+    CycleSlot2 = "number",
+    CycleSlot3 = "number",
+    CycleSlot4 = "number"
+}
+
+local inputs = {
+    Fire = "number"
+}
+
+wire.adjustPorts(inputs, outputs)
+
+local edge_trigger = 0
+local cycle_trigger = 0
+local cycle_index = 1
+hook.add("tick", "", function()
+    if (edge_trigger == 0) then
+        if (wire.ports.Fire == 1) then
+            edge_trigger = 1
+            cycle_trigger = 1
+        end
+    end
+    if (edge_trigger == 1) then
+        if (wire.ports.Fire == 0) then
+            edge_trigger = 0
+        end
+        
+        if (cycle_trigger == 1) then
+            --print("CYCLE TRIGGER")
+            for k, v in pairs(outputs) do
+                wire.ports[k] = 0
+            end
+            
+            cycle_index = cycle_index + 1
+            if (cycle_index > table.count(outputs)) then
+                cycle_index = 1
+            end
+            --print(cycle_index)
+            --print(table.count(outputs))
+            --print(printTable(table.getKeys(outputs)))
+            wire.ports[table.getKeys(outputs)[cycle_index]] = 1
+            wire.ports[table.getKeys(outputs)[cycle_index]] = 0
+            
+            cycle_trigger = 0
+            
+        end
+    end
+        
+end)
+    

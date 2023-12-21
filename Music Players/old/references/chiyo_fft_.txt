@@ -1,0 +1,85 @@
+--@name FFT 
+--@author EGR
+--@client
+
+local fft={}
+
+
+bass.loadURL( "https://dl.dropboxusercontent.com/s/m406psq5pgu6txx/Mabinogi%20Relaxing%20%26%20Memorial%20BGM%20Collection.ogg?dl=1", "3d noblock", function(Sound)
+    Sound:play()
+    hook.add("think","",function()
+        Sound:setPos(chip():getPos())
+        Sound:setVolume( 1 )
+        Sound:setLooping( false )
+        Sound:setFade( 75, 100 )
+        fft=Sound:getFFT(6)
+    end)
+end)
+                
+hook.add("render","",function()      
+    render.setColor(Color(188,1,(fft[5] or 0)*10):hsvToRGB()) 
+    render.draw3DBox(Vector(0,512,0),Angle(),Vector(),Vector(512*2))
+                
+    render.setColor(Color(188,1,(fft[6] or 0)*10):hsvToRGB()) 
+    render.draw3DBox(Vector(512,512,0),Angle(0,0,90),Vector(),Vector(512))
+    render.draw3DBox(Vector(-512,512,0),Angle(0,0,90),Vector(),Vector(512))
+                    
+    render.setColor(Color(188,1,(fft[7] or 0)*10):hsvToRGB()) 
+    render.draw3DBox(Vector(0,0,0),Angle(0,0,90),Vector(),Vector(512))  
+                
+    render.setColor(Color(188,1,(fft[10] or 0)*10):hsvToRGB()) 
+    render.draw3DBox(Vector(0,512,512),Angle(0,0,90),Vector(),Vector(512))
+                
+    for i=0,50,1 do
+        render.setColor(Color(i*4,1,1):hsvToRGB())
+        render.draw3DBox(Vector(0+i*10,512,250),Angle(),Vector(),Vector(10,-50-(fft[i+1] or 0)*350,10))
+    end
+end)
+--YOU CAN ADD A LIST OF LINKS BELOW IF YOU'D LIKE
+--https://dl.dropboxusercontent.com/s/42srqbhvd3enjjp/Blue-Archive_-Theme-105.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/1wi372erqsforci/%E3%80%90%E4%BD%9C%E6%A5%AD%E7%94%A8BGM%E3%80%91hololive-music-studio-lofi-_-chill-mix%E3%80%90%E3%82%B9%E3%83%88%E3%83%AA%E3%83%BC%E3%83%9F%E3%83%B3%E3%82%B0%E9%85%8D%E4%BF%A1%E4%B8%AD%E3%80%91.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/564zpi8pjl79ph0/Tick-Tock.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/xq0gfaymg2t5xe7/What-do-you-fight-for-_With-Lyrics_-_Nagoriyuki-Theme_-Guilty-Gear-Strive-OST.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/16ri5ip5tbbqnwp/TenmaTenma-September.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/564zpi8pjl79ph0/Tick-Tock.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/wjutxbg7w76xfgo/Warhammer-40K_-Darktide-OST-Disposal-Unit-_Assassination_Boss-Official-Theme_-_EXTENDED-MIX_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/ngg9618eyd3hlme/Operation-Lead-Seal.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/zqp26456fl8dr7t/pocchimaru.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/uazbujofh1lt74z/mafumafu%20i%20wanna%20be%20a%20girl.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/5wl8p04b3osg59k/Overdose-Kobo-Kanaeru-_Cover_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/fs9l2bdorahwhju/%E3%81%AA%E3%81%A8%E3%82%8A-Overdose.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/c1nuhpz0huh02sq/%E3%81%AA%E3%81%A8%E3%82%8A-%E7%8C%BF%E8%8A%9D%E5%B1%85.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/o1q79ng5gc5nb09/mao-zedong-propaganda-music-Red-Sun-in-the-Sky.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/e8vi96uz6cjameb/Super-Idol-%E7%83%AD%E7%88%B1105C%E7%9A%84%E4%BD%A0-80_s-version.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/s4fjoknzaqspejj/99-Luftballons.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/wu23j1lkrak9gxt/Cirno%20Fumo%20Bop%20%5BFull%20Theme%5D.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/1t8hlkz306dtmmh/Bout-hit_em-with-this-furry-shit-_-Animation.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/fmdhahikve8ssh0/Hey-Ya_-OutKast-_Lyrics_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/e9qfzfagor2nm5r/%E3%80%90Hololive-Song-_-Gawr-Gura-Sing%E3%80%91Maroon-5-Payphone-_with-Lyrics_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/a66h8ub2q4cftza/goober%20stay%20with%20me.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/h0y6aepuadsfgf6/ina%20fly%20me%20to%20the%20moon.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/qyx66cfe9tcsw2r/suisei%20comedy.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/ncwkcgcinv0uf63/suisei%20mixed%20nuts.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/ppu6yaelnohaeg4/Weezer-Buddy-Holly-_Lyrics_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/x0frodc8wbwltft/Polish-cow-_English-Lyrics-Full-Version_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/l5eiyl14kbj8l50/Da-Tweekaz-J%C3%A4germeister-_Official-Video_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/chmh4xdsrbwmbu6/polish-cow-_malwex-remix_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/gvagye9a8jbasbm/Caramella-Girls-Caramelldansen-_Metal-Cover-by-Little-V_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/9wscoqftrl3tcnf/Gotye-Somebody-That-I-Used-To-Know-_feat.-Kimbra_-_Official-Music-Video_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/1nnt0p5t9jtcnci/Heaven-Pierce-Her-ORDER-_ULTRAKILL-P-1-Theme-_2_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/7au8v3hu0acnm9d/Yakuza_-Like-a-Dragon-OST-Cold-Blooded-_War-Maker_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/lmnb8gw8x0gz36o/LeGrand-x-Ethan-Gander-DON_T-WASTE-MY-TIME-_Official-Audio_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/b0elbwcnuyjxxy3/I-Believe-In-Us-_Arknights-Soundtrack_-Reigan-_full-version_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/27psaokzrxtp5bj/LeGrand-x-CG5-Give-a-Little-_Official-Lyric-Video_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/z2mryamaushknno/Arknights-EP-Undertopia.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/l3h7uduq418718a/LeGrand-Indifferent-_Official-Audio_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/05ovc70102y12fc/YOASOBI%E3%80%8C%E3%82%A2%E3%82%A4%E3%83%89%E3%83%AB%E3%80%8D-Official-Music-Video.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/y8t93n16itf04gq/KEYGEN-CHURCH-Tenebre-Rosso-Sangue-_ULTRAKILL-P-2-Theme-_1_.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/4sxapqhn4ah0280/Was-ist-dein-lieblingsfach-_-M.VALE-EUROBEAT-REMIX.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/rts0sf090oh3929/Panzerlied-Eurobeat-Remix.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/wt853mj2z0r23ie/The-Circle-_With-Lyrics_-_Bedman_-Theme_-Guilty-Gear-Strive-OST.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/bdxmjbbfhhbqm9e/Guilty-Gear-Strive-OST-The-Gravity-_Asuka_s-Theme_-HIGH-QUALITY.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/bq6frddyrdv5h9t/Find-Your-One-Way-_With-Lyrics_-_Sol-Theme_-Guilty-Gear-Strive-OST.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/tb7fd5ylairleqe/Operation-Deepness.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/xlmpor8309je9gz/Skyrim-Music-_-Ambience-Night.ogg?dl=1
+--https://dl.dropboxusercontent.com/s/m406psq5pgu6txx/Mabinogi%20Relaxing%20%26%20Memorial%20BGM%20Collection.ogg?dl=1

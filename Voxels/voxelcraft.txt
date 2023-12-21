@@ -1,0 +1,172 @@
+--@name VoxelCraft
+--@author Feven Kitsune
+--@shared
+
+local voxel_size = 23.725
+local v_offset = chip():getPos()[3] + (voxel_size / 2)
+
+local offset_calculation_position = chip():getPos() / voxel_size
+offset_calculation_position:round()
+offset_calculation_position = offset_calculation_position * voxel_size
+v_offset = v_offset - offset_calculation_position[3]
+
+local voxel_model = "models/hunter/blocks/cube05x05x05.mdl"
+local voxel_model_2 = "models/hunter/blocks/cube05x1x05.mdl"
+local voxel_model_3 = "models/hunter/blocks/cube05x105x05.mdl"
+local voxel_material = "phoenix_storms/MetalSet_1-2"
+local DEBUG = false
+
+print(v_offset)
+
+if SERVER then
+    local function get_directions(voxel_position)
+        local function voxel_type(ent)
+            if ent:getModel() ~= voxel_model then return false end
+            if ent:getPos() == voxel_position then return false end
+            return true
+        end
+        
+        local direction_table = {
+            front = trace.line( voxel_position, voxel_position + (Vector(1, 0, 0) * voxel_size ), voxel_type, nil, nil, true ),
+            back = trace.line( voxel_position, voxel_position + (Vector(-1, 0, 0) * voxel_size ), voxel_type, nil, nil, true ),
+            left = trace.line( voxel_position, voxel_position + (Vector(0, 1, 0) * voxel_size ), voxel_type, nil, nil, true ),
+            right = trace.line( voxel_position, voxel_position + (Vector(0, -1, 0) * voxel_size ), voxel_type, nil, nil, true ),
+            up = trace.line( voxel_position, voxel_position + (Vector(0, 0, 1) * voxel_size ), voxel_type, nil, nil, true ),
+            down = trace.line( voxel_position, voxel_position + (Vector(0, 0, -1) * voxel_size ), voxel_type, nil, nil, true ),
+        }
+        
+        return direction_table
+    end
+    
+    local function get_valid_directions(direction_table)
+        local valid_directions = {
+            front = direction_table["front"]["Entity"]:isValid(),
+            back = direction_table["back"]["Entity"]:isValid(),
+            left = direction_table["left"]["Entity"]:isValid(),
+            right = direction_table["right"]["Entity"]:isValid(),
+            up = direction_table["up"]["Entity"]:isValid(),
+            down = direction_table["down"]["Entity"]:isValid(),
+        }
+        
+        return valid_directions
+    end
+    
+    local function check_direction_merge(detect_voxel, detect_voxel_ents, direction)
+        if detect_voxel[direction] and get_valid_directions( get_directions( detect_voxel_ents[direction]["Entity"]:getPos() ) )[direction] then
+            return true
+        end
+        return false
+    end
+    
+    local function perform_direction_merge(detect_voxel, detect_voxel_ents, direction)
+        get_directions( detect_voxel_ents[direction]["Entity"]:getPos() )[direction]["Entity"]:remove()
+        local target_position = detect_voxel_ents[direction]["Entity"]:getPos()
+        detect_voxel_ents[direction]["Entity"]:remove()
+        return target_position
+    end
+    
+    hook.add("KeyPress", "spawn_cube", function(ply,key)
+        if( ply != owner() ) then return end
+        if( !ply:isAlive() ) then return end
+        if( ply:getActiveWeapon():getClass() != "none" ) then return end
+        
+        -- PLACE BLOCK
+        if ( key == IN_KEY.ATTACK2 and prop.canSpawn() ) then
+            local eye_trace_data = ply:getEyeTrace()
+            local voxel_position = eye_trace_data["HitPos"] / voxel_size
+            voxel_position:round()
+            voxel_position = voxel_position * voxel_size
+            
+            -- CALCULATE MERGE CANIDATES
+            local detect_voxel_ents = get_directions(voxel_position)
+            local detect_voxel = get_valid_directions(detect_voxel_ents)
+            
+            -- printTable(detect_voxel)
+            local target_position = Vector(0, 0, 0)
+            local target_model = voxel_model
+            local target_angle = Angle(0, 0, 0)
+            
+            if detect_voxel["front"] and detect_voxel["back"] then
+                if DEBUG then print("CENTER MERGE") end
+                detect_voxel_ents["front"]["Entity"]:remove()
+                detect_voxel_ents["back"]["Entity"]:remove()
+                target_position = voxel_position
+                target_angle = Angle(0, 90, 0)
+                target_model = voxel_model_3
+                
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "front") then
+                if DEBUG then print("FRONT MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "front")
+                target_angle = Angle(0, 90, 0)
+                target_model = voxel_model_3
+                
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "back") then
+                if DEBUG then print("BACK MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "back")
+                target_angle = Angle(0, 90, 0)
+                target_model = voxel_model_3
+                
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "left") then
+                if DEBUG then print("LEFT MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "left")
+                target_angle = Angle(90, 0, 0)
+                target_model = voxel_model_3
+                
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "right") then
+                if DEBUG then print("RIGHT MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "right")
+                target_angle = Angle(90, 0, 0)
+                target_model = voxel_model_3
+                
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "up") then
+                if DEBUG then print("UP MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "up")
+                target_angle = Angle(0, 0, 90)
+                target_model = voxel_model_3
+            
+            elseif check_direction_merge(detect_voxel, detect_voxel_ents, "down") then
+                if DEBUG then print("DOWN MERGE") end
+                target_position = perform_direction_merge(detect_voxel, detect_voxel_ents, "down")
+                target_angle = Angle(0, 0, 90)
+                target_model = voxel_model_3
+                
+            else
+                if DEBUG then print("STANDARD PLACE") end
+                target_position = voxel_position
+                target_angle = Angle(0, 0, 0)
+                target_model = voxel_model
+            end
+            
+            local voxel = prop.create( target_position, target_angle, target_model, true )
+            voxel:setMaterial( voxel_material )
+            -- Find voxel to FRONT
+            -- TODO: CALCULATE THIS BEFORE SPAWNING THE INITIAL VOXEL TO PREVENT EXTRA SPAWNS!
+            --[[
+            local front_trace = trace.line(voxel:getPos(), voxel:getForward() * voxel_size, function(ent)
+                if ent == voxel then return false end
+                if ent:getModel() ~= voxel_model then return false end
+                return true
+            end, nil, nil, true)
+            local voxel_up = front_trace["Entity"]
+            if voxel_up:isValid() then
+                local voxel_pos = voxel:getPos()
+                local voxel_up_pos = voxel_up:getPos()
+                voxel:remove()
+                voxel_up:remove()
+                local midpoint = (voxel_pos + voxel_up_pos) / 2
+                
+                local merged_voxel = prop.create ( midpoint, Angle(0, 0, 90), voxel_model_2, true)
+                merged_voxel:setMaterial(voxel_material)
+            end]]
+        end
+        
+        -- DESTROY BLOCK
+        if ( key == IN_KEY.ATTACK ) then
+            -- TODO: Check BSU perms before removing!!
+            local eye_trace_data = ply:getEyeTrace()
+            local target_entity = eye_trace_data["Entity"]
+            if target_entity:getModel() ~= voxel_model then return end
+            target_entity:remove()
+        end
+    end)
+end

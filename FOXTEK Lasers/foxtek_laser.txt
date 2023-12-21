@@ -1,0 +1,70 @@
+--@name FOXTEK Laser
+--@author FOXTEK (FevenKitsune)
+--@server
+--@include laserlib.txt
+
+local LaserLib = require("laserlib.txt")
+
+local LaserManager = class("LaserManager")
+function LaserManager:initialize(R, Theta, Phi, Color)
+    self.Laser = LaserLib:new(Color)
+    self.R = R
+    self.Theta = Theta
+    self.Phi = Phi
+    
+    
+    -- https://en.wikipedia.org/wiki/Spherical_coordinate_system
+    self.xyz = Vector()
+end
+
+function LaserManager:think(parent)
+    local startpos = parent:getPos() + parent:getUp() * 1
+    local endpos = parent:localToWorld(self.xyz)
+    self.Laser:thinkpos(startpos, endpos)
+    
+    -- local ray = trace.line( parent:getPos() + parent:getUp() * 1, parent:localToWorld(self.xyz) )
+    --self.Laser:think(ray)
+end
+
+function LaserManager:calculateXYZ()
+    local rxsintheta = self.R * math.sin(self.Theta)
+    self.xyz[1] = rxsintheta * math.cos(self.Phi)
+    self.xyz[2] = rxsintheta * math.sin(self.Phi)
+    self.xyz[3] = self.R * math.cos(self.Theta)
+    -- https://en.wikipedia.org/wiki/Spherical_coordinate_system
+    -- self.x = rxsintheta * math.cos(self.Phi)
+    -- self.y = rxsintheta * math.sin(self.Phi)
+    -- self.z = self.R * math.cos(self.Theta)
+end
+
+local fp = false
+local n = 50
+local R = 750
+
+local Lasers = {}
+for i = 1, n do
+    Lasers[i] = LaserManager:new(R, 0, 0, Color(i*(255/n), 0, 255))
+end
+
+--timer.create("update_laser", 0.03, 0, function()
+hook.add("tick", "update_laser", function()
+    --fp = not fp -- HALF RATE UPDATES
+    --if fp then return end
+    
+    local rt = timer.realtime
+    local sin = math.sin
+    local cos = math.cos
+    
+    local Cn = Lasers[1].Laser.Line:getColor()
+    Lasers[n].Laser.Line:setColor(Cn)
+    
+    for k = 1, #Lasers do
+        local v = Lasers[k]
+        --v.Theta = sin( ((rt()*-5) + (1/n) * k ) * 1 )
+        v.Theta = ((rt()*2) + (1/(n/(2*math.pi))) * (k) ) % (2 * math.pi)
+        v.Phi = cos( ((rt()*2) + (1/(n/3)) * k ) * .3 )
+        if k ~= 50 then v.Laser.Line:setColor(Lasers[k+1].Laser.Line:getColor()) end
+        v:calculateXYZ()
+        v:think(chip())
+    end
+end)

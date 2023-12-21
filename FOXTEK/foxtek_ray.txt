@@ -1,0 +1,121 @@
+--@name FOXTEK Ray
+--@author
+--@client
+
+local Ray = class("Ray")
+function Ray:initialize(R, Theta, Phi)
+    self.R = R
+    self.Theta = Theta
+    self.Phi = Phi
+    
+    -- https://en.wikipedia.org/wiki/Spherical_coordinate_system
+    self.x = self.R * math.sin(self.Theta) * math.cos(self.Phi)
+    self.y = self.R * math.sin(self.Theta) * math.sin(self.Phi)
+    self.z = self.R * math.cos(self.Theta)
+end
+
+function Ray:getTrace(parent)
+    local ray = trace.line( parent:getPos() + parent:getUp() * 1, parent:localToWorld(Vector(self.x, self.y, self.z)) ) 
+    return ray
+end
+
+function Ray:color(parent)
+    local ray = self:getTrace(parent)
+    local ent = ray.Entity
+    if ent ~= nil and ent:isValid() then
+        return ray.Entity:getColor()
+    else
+        return Color(0,0,0)
+    end
+end
+
+function Ray:calculateXYZ()
+    -- https://en.wikipedia.org/wiki/Spherical_coordinate_system
+    self.x = self.R * math.sin(self.Theta) * math.cos(self.Phi)
+    self.y = self.R * math.sin(self.Theta) * math.sin(self.Phi)
+    self.z = self.R * math.cos(self.Theta)
+end 
+
+function Ray:setXYZ(xyz)
+    self.x = xyz[1]
+    self.y = xyz[2]
+    self.z = xyz[3]
+end
+
+function Ray:getEndVector()
+    return Vector(self.x, self.y, self.z)
+end
+
+
+local FOV = 90
+local R = 1000
+local rFOV = math.rad(FOV)
+print(rFOV)
+
+function getPixel(x, y)
+    local theta = math.remap(x, 1, 512, -(rFOV / 2), rFOV / 2)
+    local phi = math.remap(x, 1, 512, rFOV / 2, -(rFOV / 2))
+    
+    local ray = Ray:new(R, theta, phi)
+    local clr = ray:color(chip())
+    return clr
+--[[
+    render.setColor(clr)
+    render.drawRectFast(x, y, 1, 1)
+]]
+end
+
+local function quotaCheck(n)
+    return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+end
+
+function indexToXY(index, gridSize)
+    local x = (index - 1) % gridSize + 1
+    local y = math.floor((index - 1) / gridSize) + 1
+    return x, y
+end
+
+local cx = 1
+local cy = 1
+local idx = 1
+local pixelbuffer = {}
+local memready = false
+
+hook.add("tick", "allocate_memory", function()
+    while(quotaCheck(0.70)) do
+        pixelbuffer[idx] = Color(25, 25, 25)
+        idx = idx + 1
+    end
+    
+    if idx > 512 * 512 then
+        idx = 1
+        print("Allocation complete!")
+        print(#pixelbuffer)
+        memready = true
+        hook.remove("tick", "allocate_memory")
+        return
+    end
+end)
+
+hook.add("tick", "", function()
+    if memready == false then return end
+    while(quotaCheck(0.70)) do
+        local x, y = indexToXY(idx, 512)
+        local color = getPixel(x, y)
+        pixelbuffer[idx] = color
+        idx = idx + 1
+        if idx > 512 * 512 then
+            idx = 1
+        end
+    end
+end)
+
+local ridx = 1
+hook.add("render", "", function()
+    if memready == false then return end
+    for ridx = 1, 262144 do
+        local rx, ry = indexToXY(ridx, 512)
+        render.setColor(pixelbuffer[ridx])
+        render.drawRectFast(rx, ry, 1, 1)
+    end
+end)

@@ -1,0 +1,35 @@
+--@name Notifier v3
+--@author FOXTEK (Feven Kitsune)
+--@shared
+
+local owner = owner()
+
+local names = {owner:getName(), "feven", "kitsune", "kitsu"}
+
+local chip = chip()
+
+if SERVER then
+    -- SERVERSIDE CODE TO HANDLE MESSAGE HANDLING
+    hook.add("PlayerSay", "Hey", function(ply, txt)
+        for _,i in ipairs(names) do -- iterate through each item in array names
+            if string.find(string.lower(txt), string.lower(i)) then -- check if the name exists in a string.
+                net.start("playNotification")
+                net.send()
+                return
+            end
+        end
+    end)
+else
+    if (player() == owner) then
+        -- CLIENTSIDE CODE TO PLAY SOUND
+        local notification = sounds.create(chip, "garrysmod/save_load1.wav", false) -- load notification sound
+        
+        net.receive("playNotification", function()
+            print("You have a notification!")
+            notification:play() -- play notification sound
+            timer.simple(2, function()
+                notification:stop()
+                end)
+        end)
+    end
+end

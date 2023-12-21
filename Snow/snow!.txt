@@ -1,0 +1,76 @@
+--@name Snow!
+--@author Feven Kitsune
+--@client
+
+local emitter = particle.create( chip():getPos(), false)
+local sizex = 1
+local sizey = 200
+local ready = false
+local pmax = 100
+if hasPermission("convar") then
+    pmax = convar.getInt("sf_particles_max")
+end
+local pdietime = 6.5
+local ppt = 1 -- particles per tick, default 1
+local tickrate = pdietime / pmax
+local psizemin = 2
+local psizemax = 5
+
+local textures = {
+    "https://i.imgur.com/4P3xSl4.png",
+    "https://i.imgur.com/RCRIAgQ.png",
+    "https://i.imgur.com/N9hRt4t.png",
+    "https://i.imgur.com/gcBR930.png"
+}
+
+local loaded_materials = {}
+
+local function HandleMaterial(mtl, url, width, height, layout)
+    if not width or not height then
+        mat:setTexture("$basetexture", "hunter/myplastic")
+        print("Invalid texture URL")
+        return
+    end
+    
+    local xScale = 1024 / width
+    local yScale = 1024 / height
+    layout(0, 0, width * xScale, height * yScale, true)
+    table.insert(loaded_materials, mtl)
+    ready = true
+end
+
+for _, v in ipairs(textures) do
+    local mat = material.create("UnlitGeneric")
+    mat:setTextureURL("$basetexture", v, HandleMaterial)
+    mat:setInt("$flags",256)
+end
+
+timer.create("SnowSpawn", tickrate, 0, function()
+    
+    if not ready then return end -- no materials have been loaded yet, return
+    for i = 1, ppt do
+        local psize = math.rand( psizemin, psizemax )
+        if not emitter:isValid() then return end
+        if emitter:getParticlesLeft() < 1 then return end
+        local part = emitter:add( table.random(loaded_materials),
+            chip():localToWorld(Vector(math.rand(-sizex, sizex), math.rand(-sizey, sizey), math.rand(0, 1))), -- position
+            psize,  -- start size
+            psize,  -- end size
+            psize,  -- start length
+            psize,  -- end length
+            255,-- start alpha
+            255,  -- end alpha
+            pdietime   -- die time
+        ) -- Create a new particle at pos
+        if ( part ) then
+            part:setGravity( Vector( 0, 0, -10 ) ) -- Gravity of the particle
+            part:setVelocity( Vector(math.rand(-1, 1),math.rand(-1, 1),math.rand(-.1, 0)) * 10 ) -- Initial velocity of the particle
+            part:setCollide( true )
+        end
+    end
+end)
+
+hook.add("removed", "removeEmitter", function()
+    if not emitter:isValid() then return end
+    emitter:destroy()
+end)

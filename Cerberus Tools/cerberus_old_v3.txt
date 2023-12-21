@@ -1,0 +1,296 @@
+--@name Cerberus AI System
+--@author Feven Kitsune
+--@server
+
+local chip = chip()
+local hoverHeight = 80 -- How far above the user should the chip follow. Default: 100
+local hoverDistance = 0 -- How far behind the user should the chip follow. Default: -20
+
+local owner = owner()
+
+local physMove = false
+local healMode = false
+
+local umbrella
+local shield1
+local shield2
+local shield3
+local cubes = {}
+
+-- New physics
+local topspeed = 10000
+local accel_ups = 100 -- Acceleration in units/second
+
+chip:setFrozen(true)
+chip:setNocollideAll(true)
+
+local function commandPause()
+    -- Pause command, freezes chip in air and prevents further movement.
+    hook.remove("Think", "FollowPlayer")
+    return ""
+end
+
+local function commandFollow()
+    -- Restores movement functionality.
+    hook.add("Think", "FollowPlayer", function()
+        -- Find target position for follower.
+        local targetPosition = Vector(hoverDistance, 0, hoverHeight)
+        -- If movement has been enabled, move towards target position.
+        chip:setPos(chip:localToWorld(chip:worldToLocal(owner:localToWorld(targetPosition)) * 0.1))
+    end)
+    return ""
+end
+
+local function commandCinderblock(args)
+    local target
+    if args:sub(13,13)==" " then
+        -- If space is after "cinderblock" then a target must be specified.
+        if owner:hasGodMode() then
+            -- If owner is in God mode, print notice and return. This would constitute as killing in God mode.
+            print("You're in God mode ya cheater.")
+            return
+        end
+        print("Cinderblocking target")
+        -- Find and set target to cinderblock.
+        target = find.playersByName(args:sub(14))[1]
+    else
+        -- If no target is provided, default to owner of chip and set target as owner.
+        -- God mode is allowed when cinderblocking self.
+        print("Cinderblocking owner")
+        target = owner
+    end
+    -- Spawn cinderblock and throw at owner.
+    local cinderblock = prop.create(target:getPos() + Vector(250,0,50), Angle(), "models/props_junk/CinderBlock01a.mdl", false)
+    cinderblock:applyForceCenter(Vector(-40000,0,0))
+end
+
+local function commandExplode(args)
+    local target
+    if args:sub(9,9)==" " then
+        -- Find and set target to cinderblock.
+        target = find.playersByName(args:sub(10))[1]
+    else
+        -- If no target is provided, default to owner of chip and set target as owner.
+        -- God mode is allowed when cinderblocking self.
+        print("Targeting owner")
+        target = owner
+    end
+    -- Spawn cinderblock and throw at owner.
+    local bomb = prop.create(target:getPos() + Vector(0,0,400), Angle(), "models/props_phx/amraam.mdl", false)
+    bomb:applyForceCenter(Vector(0,0,-1000000))
+    return ""
+end
+
+local function commandUmbrella()
+    
+end
+
+local function commandClearSkies()
+    
+end
+
+local function commandShield()
+    local shield_material = "models/props_combine/stasisfield_beam"
+    --local shield_material = "WTP/metal_5b"
+    local shield_color = Color(119, 15, 204, 56)
+    --local shield_color = Color(135, 142, 109, 255)
+    if shield1 == nil then
+        shield1 = prop.create(owner:getPos() + Vector(0,0,0), Angle(), "models/hunter/misc/shell2x2a.mdl", true)
+        shield1:setUnbreakable(true)
+        shield1:setMaterial(shield_material)
+        shield1:setColor(shield_color)
+    end
+
+    if shield2 == nil then
+        shield2 = prop.create(owner:getPos() + Vector(0,0,0), Angle(), "models/hunter/tubes/tube2x2x1.mdl", true)
+        shield2:setUnbreakable(true)
+        shield2:setMaterial(shield_material)
+        shield2:setColor(shield_color)
+    end
+
+    if shield3 == nil then
+        shield3 = prop.create(owner:getPos() + Vector(0,0,0), Angle(180,0,0), "models/hunter/misc/shell2x2a.mdl", true)
+        shield3:setUnbreakable(true)
+        shield3:setMaterial(shield_material)
+        shield3:setColor(shield_color)
+    end
+    
+    hook.add("Think", "UpdateShield", function()
+        if (shield1 != nil) and (shield2 != nil) and (shield3 != nil) then
+            -- Shield stability check
+            if (!shield1:isFrozen()) or (!shield2:isFrozen()) or (!shield3:isFrozen()) then
+                print("Shield destabilized! Stabilizing shield...")
+                shield1:setFrozen(true)
+                shield2:setFrozen(true)
+                shield3:setFrozen(true)
+            end
+            
+            -- Shield fire hazard check
+            if (shield1:isOnFire()) or (shield2:isOnFire()) or (shield3:isOnFire()) then
+                print("Fire hazard detected! Extinguishing...")
+                shield1:extinguish()
+                shield2:extinguish()
+                shield3:extinguish()
+            end
+            
+            -- If shield is spawned, move it to new location.
+            shield1:setPos(owner:getPos() + Vector(0,0,45))
+            shield2:setPos(owner:getPos() + Vector(0,0,22))
+            shield3:setPos(owner:getPos() + Vector(0,0,-1))
+            --hook.remove("Think", "UpdateShield")
+        end
+    end)
+    
+    return ""
+end
+
+
+
+local function commandFreeMe()
+    -- Remove field.
+    shield1:remove()
+    shield2:remove()
+    shield3:remove()
+    shield1 = nil
+    shield2 = nil
+    shield3 = nil
+    
+    hook.remove("Think", "UpdateShield")
+    return ""
+end
+
+hook.add("PlayerSay", "Hey", function(ply, txt)
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if txt:sub(1, 6)=="/pause" then return commandPause()
+    elseif txt:sub(1,7)=="/follow" then return commandFollow()
+    elseif txt:sub(1,12)=="/cinderblock" then return commandCinderblock(txt)
+    elseif txt:sub(1,8)=="/explode" then return commandExplode(txt)
+    elseif txt:sub(1,9)=="/umbrella" then
+        -- Create a glass disk above user. This protects from falling objects.
+        if umbrella == nil then
+            umbrella = prop.create(owner:getPos() + Vector(0,0,90), Angle(), "models/props_phx/construct/glass/glass_angle360.mdl", true)
+            umbrella:setUnbreakable(true)
+        else
+            print("Umbrella already spawned!")
+        end
+        return ""
+
+    elseif txt:sub(1,11)=="/clearskies" then
+        -- Remove glass disk from above user.
+        umbrella:remove()
+        umbrella = nil
+        return ""
+        
+    elseif txt:sub(1,7)=="/shield" then return commandShield()
+    elseif txt:sub(1,7)=="/freeme" then return commandFreeMe()
+    elseif txt:sub(1,5)=="/heal" then
+        if healMode == false then
+            healMode = true
+            print("Heal Mode enabled.")
+        elseif healMode == true then
+            healMode = false
+            print("Heal Mode disabled.")
+        end
+        return ""
+        
+    elseif txt:sub(1,6)=="/rcube" then
+        local spawn_pos = owner:localToWorld(Vector(30,0,70))
+        timer.simple(0, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,90), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        timer.simple(1, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(45,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(-45,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,-45), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        timer.simple(2, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,45), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,45,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,-45,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        return ""
+        
+    elseif txt:sub(1,6)=="/ccube" then
+        for i=1,#cubes,1 do
+            cubes[i]:remove()
+        end
+        table.empty(cubes)
+        
+        return ""
+    end
+end)
+
+hook.add("Think", "ChipStabilizer", function()
+    if (!chip:isFrozen()) then
+        chip:setFrozen(true)
+        print("Chip destabilized! Restabilizing...")
+    end
+end)
+
+hook.add("Think", "UpdateHealFunctions", function()
+    if (healMode == true) && (owner:getHealth() < 100) && (prop.canSpawn()) && (owner:isAlive()) then
+        local heal_item = prop.createSent(owner:getPos() + Vector(0,0,0), Angle(), "item_healthkit", true)
+        timer.simple(0.1, function()
+            if heal_item:isValid() then
+                heal_item:remove()
+            end
+        end)
+    end
+    
+    if (healMode == true) && (owner:getArmor() < 100) && (prop.canSpawn()) && (owner:isAlive()) then
+        local suit_item = prop.createSent(owner:getPos() + Vector(0,0,0), Angle(), "item_battery", true)
+        timer.simple(0.1, function()
+            if suit_item:isValid() then
+                suit_item:remove()
+            end
+        end)
+    end
+end)
+
+hook.add("Think", "UpdateUmbrella", function()
+    if (umbrella != nil) && (prop.canSpawn()) then
+        -- If umbrella is spawned, move it to new location.
+        umbrella:setPos(owner:getPos() + Vector(0,0,90))
+    end
+end)
+
+hook.add("PlayerDeath", "DespawnProps", function(ply, inflictor, attacker)
+    -- If player dies, despawn target-locked props to prevent unfortunate accidents.
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if (umbrella != nil) then
+        umbrella:remove()
+        umbrella = nil
+    end
+    
+    --if (jar != nil) then
+    --    jar:remove()
+    --    jar = nil
+    --end
+end)
+
+hook.add("PlayerSpawn", "TeleportChip", function(ply)
+    -- Teleport instantly to player if respawned to prevent chip from barreling through everything to get to player.
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if (physMove == true) then
+        local targetPosition = Vector(hoverDistance, 0, hoverHeight)
+        -- If movement has been enabled, move towards target position.
+        chip:setPos(owner:localToWorld(targetPosition))
+    end
+end)

@@ -1,0 +1,47 @@
+--@name Anti-No Clip Field
+--@author Feven
+--@server
+
+local entity_minimum
+local entity_maximum
+
+wire.adjustPorts(
+    {
+        EntityMinimum = "entity",
+        EntityMaximum = "entity"
+    },
+    nil
+)
+
+local function isPlayer(e)
+    if e:isPlayer() and e:isNoclipped() and not e:inVehicle() then
+        return true
+    else
+        return false
+    end
+end
+
+hook.add("input", "HandleEntityInput", function(name, value)
+    if name == "EntityMinimum" then
+        entity_minimum = value
+    elseif name == "EntityMaximum" then
+        entity_maximum = value
+    end
+end)
+
+hook.add("tick", "CalculateBounds", function()
+    if not entity_minimum then return end
+    if not entity_maximum then return end
+    
+    if not entity_minimum:isValid() then return end
+    if not entity_maximum:isValid() then return end
+    
+    local wmin = entity_minimum:getPos()
+    local wmax = entity_maximum:getPos()
+    //print(wmin)
+    //print(wmax)
+    local players = find.inBox(wmin, wmax, isPlayer)
+    for k, v in pairs(players) do
+        concmd('sbsu slay \"'..v:getName()..'\"')
+    end
+end)

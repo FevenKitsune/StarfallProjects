@@ -1,0 +1,40 @@
+--@name FoxTech Slider v1
+--@author FoxTech (Feven)
+--@server
+
+local slider
+
+local function init(name, ent)
+    if (name == "PropE") then
+        print("Entity found!")
+        slider = ent
+    end
+end
+
+wire.adjustPorts(
+    {PropE="entity", Direction="vector", Distance="number", Time="number", Button="number"}, -- Inputs
+    {StartingPosition="vector", NewPosition="vector", Mode="number"} -- Outputs
+)
+
+hook.add("Input", "HandleEntityInput", function(name, value)
+    if name == "PropE" && value:isValid() then
+        -- When I'm sure everything is OK with the provided entity, I can call my initialization function
+        init(name, value)
+    end
+end)
+
+
+local state = wire.ports.Button
+hook.add("think", "Move", function()
+    local button = wire.ports.Button
+
+    if button == 1 && state == 0 then
+        wire.ports.Mode=1
+        slider:setPos(slider:getPos() + (wire.ports.Direction * wire.ports.Distance))
+        state = 1
+    elseif button == 0 && state == 1 then
+        wire.ports.Mode=0
+        slider:setPos(slider:getPos() - (wire.ports.Direction * wire.ports.Distance))
+        state = 0
+    end
+end)

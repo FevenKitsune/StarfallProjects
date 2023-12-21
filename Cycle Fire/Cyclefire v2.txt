@@ -1,0 +1,38 @@
+--@name Cycle Fire v2
+--@author Feven Kitsune
+--@server
+
+local outputs = {
+    CycleSlot1 = "number",
+    CycleSlot2 = "number",
+    CycleSlot3 = "number",
+    CycleSlot4 = "number"
+}
+
+local inputs = {
+    Fire = "number"
+}
+
+wire.adjustPorts(inputs, outputs)
+
+local pulse_width = 0.05
+local cycle_index = 1
+
+hook.add("Input", "UpdateInterrupt", function(name, value)
+    if name == "Fire" && value == 1 then
+        -- Increment cycle index, loop to 1 if overflow
+        cycle_index = cycle_index + 1
+        if (cycle_index > table.count(outputs)) then
+            cycle_index = 1
+        end 
+        
+        -- Fire pin
+        wire.ports[table.getKeys(outputs)[cycle_index]] = 1
+        
+        -- Queue timer to disable
+        local queue_index = cycle_index -- Create local instance of cycle_index to ensure timer recieves correct value. Fix provided by A Normal Twig
+        timer.simple(pulse_width, function()
+            wire.ports[table.getKeys(outputs)[queue_index]] = 0
+        end)
+    end
+end)

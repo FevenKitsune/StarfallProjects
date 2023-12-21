@@ -1,0 +1,71 @@
+--@name FOXTEK Laser Pulser
+--@author FOXTEK (FevenKitsune + {Toby})
+--@server
+
+local Laser = class("Laser")
+function Laser:initialize(R, Theta, Phi, Color)
+    self.R = R
+    self.Theta = Theta
+    self.Phi = Phi
+    
+    self.xSize = 10
+    self.ySize = 10
+    
+    self.Line = holograms.create( chip():getPos(), Angle(), "models/holograms/cube.mdl", Vector(1, self.xSize, self.ySize) )
+    self.Line:setColor(Color)
+    self.CubeSize = self.Line:obbSize()[2]
+    self.Line:suppressEngineLighting(true)
+
+    -- https://en.wikipedia.org/wiki/Spherical_coordinate_system
+    self.xyz = Vector()
+end
+
+function Laser:think(parent)
+    local startpos = parent:getPos()
+    local endpos = parent:localToWorld(self.xyz)
+    
+    local rayMidPoint = (startpos + endpos) / 2
+    self.Line:setPos( rayMidPoint )
+    self.Line:setAngles( (endpos - startpos):getAngle() )
+    self.Line:setScale( Vector( (endpos - startpos):getLength() / self.CubeSize, self.xSize, self.ySize ) )
+end
+
+function Laser:calculateXYZ()
+    local theta = self.Theta + (math.pi / 2) -- Polar points on a spherical system are weird. Rotate.
+    local rxsintheta = self.R * math.sin(theta)
+    self.xyz[3] = rxsintheta * math.cos(self.Phi) -- This order of coordinates was chosen to compensate for the rotation.
+    self.xyz[1] = rxsintheta * math.sin(self.Phi)
+    self.xyz[2] = self.R * math.cos(theta)
+end
+
+local fp = false
+local n = 30
+local R = 1000
+local SPEED = 12
+local SPREAD_P = 40
+local SPREAD_T = .5
+local DENSITY = .6
+
+local Lasers = {}
+for i = 1, n do
+    Lasers[i] = Laser:new(R, 0, 0, Color(i*(360/n), 1.0, 1.0):hsvToRGB() * Color(1, 1, 1, 0.1))
+    Lasers[i].xSize = (1/n) * i * 2.4
+    Lasers[i].ySize = (1/n) * i * 2.4
+end
+
+hook.add("tick", "update_laser", function()
+    --fp = not fp -- HALF RATE UPDATES, Uncomment for extra performance at the cost of smoothness
+    --if fp then return end
+    
+    local rt = timer.realtime
+    local sin = math.sin
+    local cos = math.cos
+    
+    for k = 1, #Lasers do
+        local v = Lasers[k]
+        v.R = (sin( ( (rt() * SPEED) + ((1 / n) * k) / DENSITY ) ) * SPREAD_P) + 50
+        --v.Phi = sin( ((rt() * SPEED) + ((1 / n) * k) / DENSITY ) * 2) * SPREAD_T
+        v:calculateXYZ()
+        v:think(chip())
+    end
+end)

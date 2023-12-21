@@ -1,0 +1,166 @@
+--@name FOXTEK Netstream Visualizer
+--@author {Toby} + Feven
+--@shared
+--@model models/props_lab/reciever_cart.mdl
+
+
+local URL = "http://198.211.107.63:8000/steam"
+local DECAY_FACTOR = 0.9
+local ATTACK_FACTOR = 0.5
+
+if SERVER then 
+    hook.add("PlayerSay","",function(ply,txt,_)
+        local CMDTemp = string.explode(" ",txt)
+        if (CMDTemp[1] == "!vol") then
+            local newVol = tonumber(CMDTemp[2])
+            net.start('changeVol')
+                net.writeFloat(newVol)
+            net.send(ply)
+            return ""
+        end
+    end)    
+end
+if CLIENT then
+    local fft_new = {}
+    local fft_previous = {}
+    local fft_smooth = {}
+    local gsnd
+    
+    function playSong()
+        local Sounds = {}
+        local Volume = 1
+        
+        bass.loadURL( URL,"noblock", function( snd, err, errtxt )
+            gsnd = snd
+            if not isValid(snd) then return end
+            snd:setLooping( Loop )    
+
+            net.receive("changeVol",function()
+                Volume = net.readFloat()
+            end)
+                
+            hook.add("Think", "", function()
+                snd:setPos(chip():getPos())          
+                if player():getPos():getDistance(chip():getPos()) > 6500 then
+                    snd:setVolume(0)
+                else
+                    snd:setVolume( Volume )
+                end                             
+            end)
+               
+            snd:play()
+            table.insert(Sounds,snd)
+            if isValid(Sounds[2]) then
+                Sounds[1]:stop()
+                table.remove(Sounds,1) 
+            end
+        end)
+    end
+    
+    local function quotaCheck(n)
+        return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+    end
+    
+    local function ramCheck(n)
+        return math.max(ramAverage(), ramUsed()) < ramMax()*n
+    end
+    
+    hook.add("Think", "calculateFFT", function()
+        if gsnd == nil or not gsnd:isValid() then
+            return
+        end
+        
+        -- Define a local function for smoothing the FFT values with attack and decay factors
+        local function fft_smoothing(fft_previous, fft_new, attack_factor, decay_factor)
+            local decayed_values = {}
+            -- Iterate over each frequency bin of the FFT values
+            for i, value in ipairs(fft_new) do
+                if value > fft_previous[i] then
+                    -- Apply attack factor to smoothly increase the value
+                    local decayed_value = fft_previous[i] + ((value - fft_previous[i]) * attack_factor)
+                    table.insert(decayed_values, decayed_value)
+                else
+                    -- Apply decay factor to gradually decrease the value
+                    local decayed_value = fft_previous[i] * decay_factor
+                    table.insert(decayed_values, decayed_value)
+                end
+            end
+            
+            return decayed_values  -- Return the smoothed FFT values
+        end
+        
+        -- Check if the previous FFT values table is empty
+        if next(fft_previous) == nil then
+            -- If empty, initialize fft_smooth with current FFT values
+            fft_smooth = gsnd:getFFT(3)
+        end
+        fft_previous = fft_smooth
+        fft_new=gsnd:getFFT(3)
+        
+        fft_smooth = fft_smoothing(fft_previous, fft_new, ATTACK_FACTOR, DECAY_FACTOR)
+        
+    end)
+    
+    hook.add("render","",function()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+        
+        if quotaCheck(0.5) && ramCheck(0.5) then
+            
+--[[
+            if player() == owner() then
+                net.start("FFTPacket")
+                net.writeTable({fft_smooth[1], fft_smooth[2], fft_smooth[3], fft_smooth[4], fft_smooth[5]})
+                net.send(nil, true)
+            end
+]]
+            local saturation = 0
+            local multiplier = 3
+            render.setColor(Color(0,saturation,(fft_smooth[2] or 0)*multiplier):hsvToRGB()) 
+            render.draw3DBox(Vector(0,512,0),Angle(),Vector(),Vector(512*2))
+                
+            render.setColor(Color(0,saturation,(fft_smooth[3] or 0)*multiplier):hsvToRGB()) 
+            render.draw3DBox(Vector(512,512,0),Angle(0,0,90),Vector(),Vector(512))
+            render.draw3DBox(Vector(-512,512,0),Angle(0,0,90),Vector(),Vector(512))
+                        
+            render.setColor(Color(0,saturation,(fft_smooth[4] or 0)*multiplier):hsvToRGB()) 
+            render.draw3DBox(Vector(0,0,0),Angle(0,0,90),Vector(),Vector(512))  
+                
+            render.setColor(Color(0,saturation,(fft_smooth[5] or 0)*multiplier):hsvToRGB()) 
+            render.draw3DBox(Vector(0,512,512),Angle(0,0,90),Vector(),Vector(512))
+            
+            local amplitude = 900 -- default 350
+            local hueamp = 1
+            local satamp = 10
+            for i=0,49,1 do
+                --render.setColor(Color(i*4,1,1):hsvToRGB())
+                
+                --render.setColor(Color((fft_smooth[i+1] or 0) * hueamp,(fft_smooth[i+1] or 0) * satamp,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
+                --render.setColor(Color((fft_smooth[i+1] or 0) * hueamp,1,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
+                render.setColor(Color(i*(360/50),1,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
+                render.draw3DBox(
+                    Vector((i%10)*(512/10), 512-(50+(fft_smooth[i+1] or 0) * amplitude), 512 - math.floor(i/10)*(512/10) - 200),
+                    Angle(),
+                    Vector(),
+                    Vector((512/10), 50+(fft_smooth[i+1] or 0) * amplitude, (512/10))
+                )
+            end
+--[[
+            render.setFont("Trebuchet24")
+            render.drawText(4, 0, "Currently playing:\n"..currentName.."\n"..currentArtist)
+]]
+        end
+    end)
+    
+    if URL and hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+        playSong() 
+    end
+    
+    
+    setupPermissionRequest({"bass.loadURL", "bass.play2D"}, "URL sounds from external sites and 2d sounds", true)
+    
+    hook.add("permissionrequest", "permission", function()
+        if URL and hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+            playSong() 
+        end
+    end)
+end

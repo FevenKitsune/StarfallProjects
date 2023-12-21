@@ -1,0 +1,65 @@
+--@name Blacklist Field
+--@author Feven
+--@server
+
+local entity_minimum
+local entity_maximum
+
+wire.adjustPorts(
+    {
+        EntityMinimum = "entity",
+        EntityMaximum = "entity"
+    },
+    nil
+)
+
+local blacklist = {""}
+local function isTarget(e)
+    if e:isPlayer() and e:isAlive() then
+        for _, value in ipairs(blacklist) do
+            if value == e:getName() then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function isOwnerTarget(e)
+    for _, value in ipairs(blacklist) do
+        if e:getOwner() and e:getOwner():isAlive() and value == e:getOwner():getName() then
+            return true
+        end
+    end
+    return false
+end
+
+hook.add("input", "HandleEntityInput", function(name, value)
+    if name == "EntityMinimum" then
+        entity_minimum = value
+    elseif name == "EntityMaximum" then
+        entity_maximum = value
+    end
+end)
+
+hook.add("tick", "CalculateBounds", function()
+    if not entity_minimum then return end
+    if not entity_maximum then return end
+    
+    if not entity_minimum:isValid() then return end
+    if not entity_maximum:isValid() then return end
+    
+    local wmin = entity_minimum:getPos()
+    local wmax = entity_maximum:getPos()
+    //print(wmin)
+    //print(wmax)
+    local players = find.inBox(wmin, wmax, isTarget)
+    for k, v in pairs(players) do
+        concmd('sbsu slay \"'..v:getName()..'\"')
+    end
+    
+    local ents = find.inBox(wmin, wmax, isOwnerTarget)
+    for k, v in pairs(ents) do
+        concmd('sbsu slay \"'..v:getOwner():getName()..'\"')
+    end
+end)

@@ -1,0 +1,39 @@
+--@name FOXTEK Laser Liter
+--@author FOXTEK (FevenKitsune)
+--@client
+
+setupPermissionRequest({ "render.hud" }, "Laser Show!", true)
+local permissionSatisfied = hasPermission("render.renderView")
+
+local fp = false
+local n = 50
+local R = 1000
+
+--timer.create("update_laser", 0.03, 0, function()
+hook.add("postdrawopaquerenderables", "update_laser", function(depth, skybox)
+    if not permissionSatisfied then return end
+    --fp = not fp -- HALF RATE UPDATES
+    --if fp then return end
+    
+    
+    local target_point = Vector()
+    local rt = timer.realtime
+    local sin = math.sin
+    local cos = math.cos
+    
+    for k = 1, n do
+        local theta = sin( (rt() + (1/n) * k ) * 1 )
+        local phi = cos( (rt() + (1/n) * k ) * 1 )
+        local rxsintheta = R * sin(theta)
+        target_point[1] = rxsintheta * cos(phi)
+        target_point[2] = rxsintheta * sin(phi)
+        target_point[3] = R * cos(theta)
+        --local ray = trace.line( chip():getPos() + chip():getUp() * 1, chip():localToWorld(target_point) )
+        render.draw3DBeam( chip():getPos() + chip():getUp() * 1, chip():getPos() + target_point, 0.2, 0, 12.5 )
+    end
+end)
+
+hook.add("permissionrequest", "", function()
+    permissionSatisfied = hasPermission("render.hud")
+    if permissionSatisfied then enableHud(nil, true) end
+end)

@@ -1,0 +1,175 @@
+--@name Music Player (Remix)
+--@author Feven Kitsune (Forked from Redox)
+--@model
+--@shared
+
+local library = {
+    {
+        ["name"] = "500 Miles",
+        ["url"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1"
+    ["500miles"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1",
+    ["dontstopmenow"] = "https://dl.dropboxusercontent.com/s/8yrv2blu9fn8ibb/dontstopmenow.ogg?dl=1",
+    ["tank"] = "https://dl.dropboxusercontent.com/s/twlfi4v0265amhj/tank.ogg?dl=1",
+    ["bananaman"] = "https://dl.dropboxusercontent.com/s/rqcos9qo0d5z8kv/tally-hall-banana-man.ogg?dl=1",
+    ["gettingoverit"] = "https://dl.dropboxusercontent.com/s/1jyl7inyqz509qi/gettingoverit.ogg?dl=1",
+    ["finale"] = "https://dl.dropboxusercontent.com/s/h7j0vhlolykls65/23%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Finale.ogg?dl=1",
+    ["sam01"] = "https://dl.dropboxusercontent.com/s/ku6zhzy80p2gkt5/01%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Intro%20Song%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
+    ["sam02"] = "https://dl.dropboxusercontent.com/s/b4u676iys16nqq4/02%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Where%20Did%20You%20Come%20From%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
+    ["sam03"] = "https://dl.dropboxusercontent.com/s/zft9wqqh8mh39n4/03%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Cave%20Ballad%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
+    ["sam04"] = "https://dl.dropboxusercontent.com/s/o2kqto1h0v73gmj/04%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Hank%20Drinks.ogg?dl=1",
+    ["sam05"] = "https://dl.dropboxusercontent.com/s/kpnvjevovfuh6ki/05%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20History%20Of%20The%20Universe%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=1",
+    ["sam06"] = "https://dl.dropboxusercontent.com/s/182lzzilbz7ud86/06%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Fetishes%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=1",
+    ["sam07"] = "https://www.dropbox.com/s/eb5w0cirljtp0we/07%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20When%20I%20Think%20About%20Mom%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=1",
+    ["abetterway"] = "https://dl.dropboxusercontent.com/s/8q9vo71l886tmo0/24%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20A%20Better%20Way.ogg?dl=1"
+    
+}
+
+if SERVER then
+    hook.add("PlayerSay", "Commands", function(ply, txt)
+        if ply ~= owner() then
+            return
+        end
+        
+        if txt:sub(1, 6) == "!song " then
+            net.start("playSong")
+            net.writeString(txt:sub(7))
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 8) == "!volume " then
+            local vol = tonumber(txt:sub(9))
+            
+            if vol == nil then
+                print("Please specify volume! (1 - 10)")
+                return ""
+            end
+            
+            net.start("setVolume")
+            net.writeInt(vol, 5)
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 5) == "!vol " then
+            local vol = tonumber(txt:sub(6))
+            
+            if vol == nil then
+                print("Please specify volume! (1 - 10)")
+                return ""
+            end
+            
+            net.start("setVolume")
+            net.writeInt(vol, 5)
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 6) == "!pause" or txt:sub(1, 3) == "!pa" then
+            net.start("pause")
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 5) == "!play" or txt:sub(1,3) == "!pl" then
+            net.start("play")
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 5) == "!stop" or txt:sub(1,3) == "!st" then
+            net.start("stop")
+            net.send()
+            return ""
+        end
+    end)
+else
+    local snd
+    local volume = 10
+    
+    
+    
+    local function loadSong(songURL)
+        local audioSource
+        
+        if library[songURL] ~= nil then
+            audioSource = library[songURL]
+        else
+            audioSource = songURL
+        end
+        
+        bass.loadURL(audioSource, "3d noblock noplay", function(bassObj)
+            snd = bassObj
+            snd:setPos( owner():getPos() )
+            snd:setVolume( volume )
+            snd:setLooping( false )
+            snd:setFade( 100, 200 )
+            snd:play()
+        
+            
+        end)
+    end
+    
+    net.receive("playSong", function(len)
+        local url = net.readString()
+        loadSong(url)
+    end)
+    
+    net.receive("setVolume", function(len)
+        local vol = net.readInt(5)
+        volume = vol
+        
+        if snd ~= nil and snd:isValid() then
+            snd:setVolume( vol )
+        end
+            
+        print("Volume has been set to " .. tostring(vol))
+    end)
+    
+    net.receive("pause", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:pause()
+    end)
+    
+    net.receive("play", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:play()
+    end)
+    
+    net.receive("stop", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:stop()
+    end)
+    
+    hook.add("Think", "sndCutoff", function()
+        if snd == nil or not snd:isValid() then
+            return
+        end
+        
+        if player():getPos():getDistance(owner():getPos()) > 200 then
+            snd:setVolume( 0 )
+        else
+            snd:setVolume( volume )
+        end
+    end)
+    
+    hook.add("Think", "sndPos", function()
+        if snd == nil or not snd:isValid() then
+            return
+        end
+        
+        snd:setPos( owner():getPos() )
+    end)
+end

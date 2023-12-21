@@ -1,0 +1,28 @@
+--@name mindless follow
+--@author
+--@client
+
+if player() != owner() then return end
+
+local target_name = "Nedster"
+setName("Mindlessly following: " .. target_name)
+local target = find.playersByName(target_name)[1]
+
+concmd("+forward")
+
+timer.create("recalculate_angles", 0.1, 0, function()
+    local lc = owner():worldToLocal(target:getPos())
+    if lc[2] > 0 then
+        concmd("+left")
+        concmd("-right")
+    elseif lc[2] < 0 then
+        concmd("+right")
+        concmd("-left")
+    end
+end)
+
+hook.add("removed","",function()
+    concmd("-right")
+    concmd("-forward")
+    concmd("-left")
+end)

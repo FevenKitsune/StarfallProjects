@@ -1,0 +1,71 @@
+--@name FunSpawn Holo
+--@author Feven Kitsune
+--@server
+
+--[[
+Starfall Scripting Environment
+
+Github: https://github.com/thegrb93/StarfallEx
+Reference Page: http://thegrb93.github.io/Starfall/
+
+Default Keyboard shortcuts: https://github.com/ajaxorg/ace/wiki/Default-Keyboard-Shortcuts
+]]
+
+local holos = {}
+--local voxel_size = 11.875
+local voxel_size = 379.666
+local refresh_rate = 2
+
+function main_loop()
+    for k, v in pairs(holos) do
+        local i = math.random(3)
+        local newpos
+        if (i == 1) then
+            newpos = v:getPos() + Vector(math.random(3)-2,0,0)*voxel_size
+        elseif (i == 2) then
+            newpos = v:getPos() + Vector(0, math.random(3)-2,0)*voxel_size
+        elseif (i == 3) then
+            newpos = v:getPos() + Vector(0, 0, math.random(3)-2)*voxel_size
+        end
+        if (newpos:isInWorld()) then
+            v:setPos(newpos)
+            v:setColor(Color(newpos[1]%255, newpos[2]%255, newpos[3]%255, 255))
+        end
+    end
+    
+    timer.simple(refresh_rate, main_loop)
+end
+
+for i=1,7,1 do
+    for j=1,4,1 do
+        for k=1,7,1 do
+            holos[#holos+1] = {
+                pos = chip():getPos() + chip():getUp() * 20 + Vector(k*(voxel_size*1),j*(voxel_size*1),i*(voxel_size*1)),
+                angle = Angle(),
+                --model = "models/hunter/blocks/cube025x025x025.mdl"
+                --model = "models/hunter/plates/plate.mdl"
+                model = "models/hunter/blocks/cube8x8x8.mdl"
+            }
+        end
+    end
+end
+
+
+local k
+hook.add("tick", "holoSpawner", function()
+    if (holograms.canSpawn() == true) then
+        local v
+        k, v = next(holos,k)
+        --print(tostring(k) .. " = " .. tostring(v))
+        if (v == nil) then
+            print("Holos done spawning.")
+            hook.remove("tick", "holoSpawner")
+            timer.simple(refresh_rate, main_loop)
+            return
+        end
+        holos[k] = holograms.create(v.pos, v.angle, v.model)
+        holos[k]:setMaterial("models/debug/debugwhite")
+        holos[k]:setColor(Color(v.pos[1]%255, v.pos[2]%255, v.pos[3]%255, 255))
+    end
+end)
+

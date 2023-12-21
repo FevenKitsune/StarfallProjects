@@ -1,0 +1,45 @@
+--@name FOXTEK Simple Car Steering
+--@author FOXTEK (Feven Kitsune)
+--@server
+--@model models/sprops/rectangles/size_2/rect_12x12x3.mdl
+
+--[[
+@name Setang steering
+@inputs A D CHASSIS:entity
+@outputs TURN
+@persist SLAVE:entity [TURN_RATE TURN_ANGLE TURN] B C 
+@model models/hunter/plates/plate1x1.mdl
+
+if (dupefinished()) {reset()}
+
+B = round(toUnit("km/h",CHASSIS:vel():length()))
+
+if (B > 40) {
+    TURN_ANGLE = 20
+    TURN_RATE = 4
+}elseif(B > 20)  {
+    TURN_ANGLE = 35
+    TURN_RATE = 7
+}else{
+    TURN_ANGLE = 45
+    TURN_RATE = 10
+}
+
+if (first())    {
+    interval(85)
+    
+    TURN_RATE = 10 
+    TURN_ANGLE = 45
+    
+    SLAVE = entity()
+} elseif (clk())    {
+    interval(85)
+
+    if (!SLAVE:isPlayerHolding())    {
+        TURN += clamp((A-D)*TURN_ANGLE - TURN, -TURN_RATE, TURN_RATE)
+        SLAVE:setAng( CHASSIS:toWorld(ang(0, TURN, -TURN/9)) )
+        SLAVE:propFreeze(1)
+    }
+}
+
+]]

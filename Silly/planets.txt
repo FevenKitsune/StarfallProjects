@@ -1,0 +1,39 @@
+--@name Planets
+--@author Feven Kitsune
+--@server
+
+local G = 6.67 * math.pow(10, -11)
+
+local chipMass = 7.4359e10
+
+local planet1 = prop.create(chip():getPos() + chip():getUp()*100, Angle(), "models/hunter/misc/sphere2x2.mdl")
+local phys_planet1 = planet1:getPhysicsObject()
+
+local planet2 = prop.create(chip():getPos() + chip():getUp()*200, Angle(), "models/hunter/misc/sphere025x025.mdl")
+local phys_planet2 = planet2:getPhysicsObject()
+
+
+
+planet1:enableGravity(false)
+planet2:enableGravity(false)
+
+planet1:enableDrag(false)
+planet2:enableDrag(false)
+
+phys_planet1:setVelocity(planet1:getRight() * -17)
+phys_planet2:setVelocity(planet2:getRight() * 17)
+
+mass_planet1 = 1e7
+planet1:setMass(50000)
+mass_planet2 = 19537.2686567
+planet2:setMass(97.68634)
+
+hook.add("think", "", function()
+    
+    local dist_sq = planet2:getPos():getDistanceSqr( planet1:getPos() )
+    local force = ( G * mass_planet2 * mass_planet1 ) / dist_sq
+    local p1_fv = force * ( planet2:getPos() - planet1:getPos() )
+    local p2_fv = force * ( planet1:getPos() - planet2:getPos() )
+    phys_planet1:addVelocity( p1_fv * 1 )
+    phys_planet2:addVelocity( p2_fv * 1 )
+end)

@@ -1,0 +1,79 @@
+--@name Advanced Web Player Scratchboard
+--@author Feven Kitsune
+--@client
+
+local new_library = {
+    {
+        ["name"] = "I'm Gonna Be (500 Miles)",
+        ["artist"] = "The Proclaimers",
+        ["url"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1"
+    },
+    {
+        ["name"] = "Don't Stop Me Now",
+        ["artist"] = "Queen",
+        ["url"] = "https://dl.dropboxusercontent.com/s/8yrv2blu9fn8ibb/dontstopmenow.ogg?dl=1"
+    }
+}
+
+printTable(new_library)
+
+local function levenshteinDistance(str1, str2)
+    local len1, len2 = #str1, #str2
+    local matrix = {}
+    
+    for i = 0, len1 do
+        matrix[i] = {}
+        matrix[i][0] = i
+    end
+
+    for j = 0, len2 do
+        matrix[0][j] = j
+    end
+
+    for i = 1, len1 do
+        for j = 1, len2 do
+            local cost = (str1:sub(i, i) ~= str2:sub(j, j) and 1 or 0)
+            matrix[i][j] = math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost
+            )
+        end
+    end
+
+    return matrix[len1][len2]
+end
+
+-- Function to search for a song by name (fuzzy search)
+local function searchSongByName(songName)
+    local minDistance = math.huge
+    local foundSong = nil
+
+    for _, song in ipairs(new_library) do
+        local distance = levenshteinDistance(song.name:lower(), songName:lower())
+        if distance < minDistance then
+            minDistance = distance
+            foundSong = song
+        end
+    end
+
+    -- Adjust the threshold as desired
+    local threshold = 100
+    if minDistance <= threshold then
+        return foundSong
+    else
+        return nil  -- Song not found
+    end
+end
+
+-- Example usage
+local songName = "Don't Stop "
+local foundSong = searchSongByName(songName)
+if foundSong then
+    print("Song found:")
+    print("Name:", foundSong.name)
+    print("Artist:", foundSong.artist)
+    print("URL:", foundSong.url)
+else
+    print("Song not found.")
+end

@@ -1,0 +1,39 @@
+--@name CATHODE
+--@author Feven Kitsune
+--@shared
+
+
+if SERVER then
+    local direction = 1
+    local speed = 240*16
+
+    local TV = chip():isWeldedTo()
+    -- Think hook
+    hook.add("think", "", function ()
+        local currentPosition = TV:getPos()
+        local currentAngles = TV:getAngles()
+        TV:setPos(currentPosition + (TV:getForward() * (speed / 100) * direction))
+        TV:setAngles(currentAngles + (Angle(0, 1.6*16, 0)))
+    end)
+    
+    local function move(direction, speed, time)
+        -- Direction: 1=forwards, -1=backwards
+    end
+        
+else
+    render.createRenderTarget("Background")
+    
+    -- Render hook
+    hook.add("render", "", function ()
+        local rx, ry = render.getResolution()
+        
+        local eyeHeight = 150
+        render.setColor(Color(255, 255, 255))
+        render.drawFilledCircle(rx/3, eyeHeight, 50)
+        render.drawFilledCircle((rx/3)*2, eyeHeight, 50)
+        
+        render.setColor(Color(0, 0, 0))
+        render.drawFilledCircle(rx/3, eyeHeight, 25)
+        render.drawFilledCircle((rx/3)*2, eyeHeight, 25)
+    end)
+end

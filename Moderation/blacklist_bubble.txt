@@ -1,0 +1,76 @@
+--@name FOXTEK Blacklist Bubble
+--@author FOXTEK (Feven Kitsune)
+--@server
+
+-- Define variables
+local blacklistNameTable = {}
+local pos = chip():getPos()
+local max = 5
+local size = 75
+blacklist = {}
+
+-- Create an outer hologram representing the blacklist bubble
+local outerHologram = hologram.create(pos, Angle(), "models/sprops/geometry/sphere_18.mdl", Vector(size + 0.05))
+outerHologram:setMaterial("sprops/textures/sprops_cfiber2")
+outerHologram:suppressEngineLighting(true)
+outerHologram:setColor(Color(35, 35, 35, 255))
+
+-- Create sub-holograms for visual effects
+local subHolograms = {}
+local radius = (size * 18) / 2
+local radiusSqr = radius * radius
+
+-- Function to convert a list of player names to Entity objects in the blacklist
+local function rebuildBlacklistTable()
+    for idx, name in ipairs(blacklistNameTable) do
+        blacklist[idx] = find.playersByName(name)[1]
+    end
+end
+
+-- Create sub-holograms for visual effects
+for i=0, max do
+    local subHolo = hologram.create(pos, Angle(math.rand(1, 360), math.rand(1, 360), math.rand(1, 360)), "models/sprops/geometry/sphere_18.mdl", Vector(-size + (i * 0.005)))
+    subHolo:setColor(Color(255, 255, 255, 255/max))
+    subHolo:setMaterial("sprops/textures/hex_light_bump")
+    subHolo:setAngVel(Angle(1 + 1 * (i - 1)))
+    table.insert(subHolograms, subHolo)
+end
+
+-- Initialize the blacklist table and print its contents
+rebuildBlacklistTable()
+printTable(blacklist)
+
+-- Update colors of sub-holograms over time
+timer.create("update_colors", 0.1, 0, function()
+    local alpha = 255 / max
+    local time = timer.curtime()
+    for k, v in ipairs(subHolograms) do
+        v:setColor(Color((time * 100 + (360 / max) * k) % 360, 1, 1):hsvToRGB():setA(alpha))
+    end
+end)
+
+-- Function to respawn blacklisted players when they attempt to enter the blacklist bubble
+local function respawnBlacklistedPlayers(playerList)
+    for _, blacklisted in pairs(blacklist) do
+        if table.hasValue(playerList, blacklisted) then
+            --print(blacklisted:getName() .. " attempted to enter the bubble.")
+            concmd('sbsu slay \"'..blacklisted:getName()..'\"')
+            concmd('sbsu respawn \"'..blacklisted:getName()..'\"')
+        end
+    end
+end
+
+-- Check for players within the blacklist bubble and respawn blacklisted players
+timer.create("check_players", 0.25, 0, function()
+    local players = find.allPlayers(function(e)
+        local d = e:getPos():getDistanceSqr(pos)
+        return d < radiusSqr
+    end)
+    
+    respawnBlacklistedPlayers(players)
+end)
+
+-- Rebuild the blacklist table when a player connects
+hook.add("PlayerConnect", "rebuildPlayerTableOnJoin", function(networkID, name, userID, isBot)
+    rebuildBlacklistTable()
+end)

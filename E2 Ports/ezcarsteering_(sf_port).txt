@@ -1,0 +1,121 @@
+--@name EZCarSteering (SF Port)
+--@author FOXTEK (Feven Kitsune
+--@server
+--@model models/sprops/rectangles_thin/size_2/rect_12x12x1_5.mdl
+
+--[[
+@name EZCarSteering
+@inputs [Chassis Chair]:entity Pod:wirelink 
+@outputs Ang MPH AngLimit
+@persist E:entity TurnLimit TurnSpeedMul TopSpeedTurnLimit SpeedInterval
+@trigger none
+@model models/sprops/rectangles_thin/size_2/rect_12x12x1_5.mdl
+if(first() | dupefinished()){
+    TurnLimit=50 #Max degrees in both directions your car can steer at low speeds.
+    TopSpeedTurnLimit=30 #MaxDegrees in both directions your car can steer at speeds higher than SpeedInterval in MPH.
+    TurnSpeedMul=2 #Multiplier for your Speed.
+    SpeedInterval=40 #The Speed at which TopSpeedTurnLimit takes full effect. This change is gradual.
+ 
+    E=entity()
+    Ang=0
+}
+runOnTick(1)
+ 
+A = Pod["A",number]
+D = Pod["D",number]
+ 
+MPH=round(toUnit("mph",Chassis:vel():length()))
+AngLimit=round(clamp((TurnLimit-MPH*(TurnLimit-TopSpeedTurnLimit)/SpeedInterval)/TurnSpeedMul,
+                            TopSpeedTurnLimit/TurnSpeedMul,TurnLimit/TurnSpeedMul))
+ 
+if (A|D){
+    Ang=clamp(Ang+(A-D),-AngLimit,AngLimit)
+}
+elseif (!A&!D&abs(Ang)>0){
+    Ang-=abs(Ang)/Ang
+}
+ 
+E:setAng(Chassis:toWorld(ang(0,Ang*TurnSpeedMul,0)))
+if (Chair){
+    E:setPos(Chair:pos())
+}
+if(!E:isPlayerHolding()){E:propFreeze(1)}else{E:propFreeze(0)}
+]]
+
+wire.adjustPorts({
+    Chassis = "entity",
+    Chair = "entity",
+    Pod = "wirelink"
+}, {
+    Ang = "number",
+    MPH = "number",
+    AngLimit = "number"
+})
+
+local TurnLimit = 50
+local TopSpeedTurnLimit = 30
+local TurnSpeedMul = 2
+local SpeedInterval = 40
+local Ang = 0
+local MPH = 0
+local AngLimit = 0
+local Chassis
+local Chair
+
+-- Inputs
+local A = 0
+local D = 0
+
+hook.add("Input", "HandleEntityInput", function(Name, Value)
+    if Name == "Chassis" and Value and Value:isValid() then
+        Chassis = Value
+        print("Chassis found: " .. tostring(Chassis))
+    end
+    
+    if Name == "Chair" and Value and Value:isValid() then
+        Chair = Value
+        print("Chair found: " .. tostring(Chair))
+    end
+end)
+
+local echip = chip()
+
+hook.add("Tick", "TickEvent", function()
+    if not Chassis then return end
+    if not wire.ports.Pod then return end
+    local round = math.round
+    local abs = math.abs
+    local clamp = math.clamp
+    
+    A = wire.ports.Pod["A"]
+    D = wire.ports.Pod["D"]
+    
+    MPH = round((Chassis:getVelocity():getLength() / 16) * 0.6818)
+    AngLimit = round( clamp((TurnLimit - MPH * (TurnLimit - TopSpeedTurnLimit) / SpeedInterval) / TurnSpeedMul,
+                                       TopSpeedTurnLimit / TurnSpeedMul,
+                                       TurnLimit / TurnSpeedMul
+    ))
+    
+    if (A == 1) or (D == 1) then
+        Ang = clamp(Ang + (A - D), -AngLimit, AngLimit)
+    elseif not (A == 1) and not (D == 1) and abs(Ang) > 0 then
+        Ang = Ang - (abs(Ang) / Ang)
+    end
+    
+    echip:setAngles( Chassis:localToWorldAngles( Angle(0, Ang * TurnSpeedMul, 0) ))
+    
+    if Chair and Chair:isValid() then
+        echip:setPos(Chair:getPos())
+    end
+    
+    
+    echip:setFrozen(not echip:isPlayerHolding())
+end)
+
+
+
+hook.add("Tick", "UpdateWireVariables", function()
+    wire.ports.Ang = Ang
+    wire.ports.MPH = MPH
+    wire.ports.AngLimit = AngLimit
+end)

@@ -1,0 +1,205 @@
+--@name FollowerSF 2
+--@author Feven Kitsune
+--@server
+
+local chip = chip()
+local hoverHeight = 90 -- How far above the user should the chip follow. Default: 100
+local hoverDistance = 0 -- How far behind the user should the chip follow. Default: -20
+
+local owner = owner()
+
+local physMove = false
+local healMode = false
+
+local umbrella
+local jar
+local cubes = {}
+
+-- New physics
+local topspeed = 10000
+local accel_ups = 100 -- Acceleration in units/second
+
+chip:setFrozen(true)
+chip:setNocollideAll(true)
+
+hook.add("PlayerSay", "Hey", function(ply, txt)
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if txt:sub(1, 6)=="/pause" then
+        -- Pause command, freezes chip in air and prevents further movement.
+        physMove = false
+        return ""
+
+    elseif txt:sub(1,7)=="/follow" then
+        -- Restores movement functionality.
+        physMove = true
+        return ""
+
+    elseif txt:sub(1,12)=="/cinderblock" then
+        local target
+        if txt:sub(13,13)==" " then
+            -- If space is after "cinderblock" then a target must be specified.
+            if owner:hasGodMode() then
+                -- If owner is in God mode, print notice and return. This would constitute as killing in God mode.
+                print("You're in God mode ya cheater.")
+                return
+            end
+            print("Cinderblocking target")
+            -- Find and set target to cinderblock.
+            target = find.playersByName(txt:sub(14))[1]
+        else
+            -- If no target is provided, default to owner of chip and set target as owner.
+            -- God mode is allowed when cinderblocking self.
+            print("Cinderblocking owner")
+            target = owner
+        end
+        -- Spawn cinderblock and throw at owner.
+        local cinderblock = prop.create(target:getPos() + Vector(250,0,50), Angle(), "models/props_junk/CinderBlock01a.mdl", false)
+        cinderblock:applyForceCenter(Vector(-40000,0,0))
+
+    elseif txt:sub(1,9)=="/umbrella" then
+        -- Create a glass disk above user. This protects from falling objects.
+        if umbrella == nil then
+            umbrella = prop.create(owner:getPos() + Vector(0,0,90), Angle(), "models/props_phx/construct/glass/glass_angle360.mdl", true)
+            umbrella:setUnbreakable(true)
+        else
+            print("Umbrella already spawned!")
+        end
+        return ""
+
+    elseif txt:sub(1,11)=="/clearskies" then
+        -- Remove glass disk from above user.
+        umbrella:remove()
+        umbrella = nil
+        return ""
+        
+    elseif txt:sub(1,6)=="/jarme" then
+        -- Spawn "jar" around player.
+        if jar == nil then
+            jar = prop.create(owner:getPos() + Vector(0,0,0), Angle(), "models/props_phx/construct/windows/window_curve360x2.mdl", true)
+            jar:setUnbreakable(true)
+        else
+            print("Jar already spawned!")
+        end
+        return ""
+        
+    elseif txt:sub(1,7)=="/freeme" then
+        -- Remove jar.
+        jar:remove()
+        jar = nil
+        return ""
+        
+    elseif txt:sub(1,5)=="/heal" then
+        if healMode == false then
+            healMode = true
+            print("Heal Mode enabled.")
+        elseif healMode == true then
+            healMode = false
+            print("Heal Mode disabled.")
+        end
+        return ""
+        
+    elseif txt:sub(1,6)=="/rcube" then
+        local spawn_pos = owner:localToWorld(Vector(30,0,70))
+        timer.simple(0, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,90), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        timer.simple(1, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(45,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(-45,0,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,-45), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        timer.simple(2, function()
+            table.insert(cubes, prop.create(spawn_pos, Angle(0,0,45), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,45,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+            table.insert(cubes, prop.create(spawn_pos, Angle(90,-45,0), "models/sprops/rectangles_superthin/size_1/rect_3x3.mdl", true))
+        end)
+        
+        return ""
+        
+    elseif txt:sub(1,6)=="/ccube" then
+        for i=1,#cubes,1 do
+            cubes[i]:remove()
+        end
+        table.empty(cubes)
+        
+        return ""
+    end
+end)
+
+    
+hook.add("Tick", "Update", function()
+    if (healMode == true) && (owner:getHealth() < 100) && (prop.canSpawn()) && (owner:isAlive()) then
+        local heal_item = prop.createSent(owner:getPos() + Vector(0,0,0), Angle(), "item_healthkit", true)
+        timer.simple(0.1, function()
+            if heal_item:isValid() then
+                heal_item:remove()
+            end
+        end)
+    end
+    
+    if (healMode == true) && (owner:getArmor() < 100) && (prop.canSpawn()) && (owner:isAlive()) then
+        local suit_item = prop.createSent(owner:getPos() + Vector(0,0,0), Angle(), "item_battery", true)
+        timer.simple(0.1, function()
+            if suit_item:isValid() then
+                suit_item:remove()
+            end
+        end)
+    end
+    
+    if (physMove == true) then
+        -- Find target position for follower.
+        local targetPosition = Vector(hoverDistance, 0, hoverHeight)
+        -- If movement has been enabled, move towards target position.
+        chip:setPos(chip:localToWorld(chip:worldToLocal(owner:localToWorld(targetPosition)) * 0.1))
+    end
+    
+    if (umbrella != nil) && (prop.canSpawn()) then
+        -- If umbrella is spawned, move it to new location.
+        umbrella:setPos(owner:getPos() + Vector(0,0,90))
+    end
+    
+    if (jar != nil) && (prop.canSpawn()) then
+        -- If jar is spawned, move it to new location.
+        jar:setPos(owner:getPos() + Vector(0,0,0))
+    end
+end)
+
+hook.add("PlayerDeath", "DespawnProps", function(ply, inflictor, attacker)
+    -- If player dies, despawn target-locked props to prevent unfortunate accidents.
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if (umbrella != nil) then
+        umbrella:remove()
+        umbrella = nil
+    end
+    
+    if (jar != nil) then
+        jar:remove()
+        jar = nil
+    end
+end)
+
+hook.add("PlayerSpawn", "TeleportChip", function(ply)
+    -- Teleport instantly to player if respawned to prevent chip from barreling through everything to get to player.
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if (physMove == true) then
+        local targetPosition = Vector(hoverDistance, 0, hoverHeight)
+        -- If movement has been enabled, move towards target position.
+        chip:setPos(owner:localToWorld(targetPosition))
+    end
+end)

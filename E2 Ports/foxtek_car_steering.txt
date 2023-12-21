@@ -1,0 +1,65 @@
+--@name FOXTEK Car Steering
+--@author FOXTEK (Feven Kitsune)
+--@server
+--@model models/sprops/rectangles_thin/size_2/rect_12x12x1_5.mdl
+
+wire.adjustPorts({
+    Chassis = "entity",
+    Pod = "wirelink"
+}, nil)
+
+chip():setFrozen(true)
+
+-- {point speed, turn rate, turn angle}
+local TurnStates = {
+    {0, 3.0, 45},
+    {12, 2.1, 35},
+    {24, 1, 20},
+    {48, 0.5, 10}
+}
+
+local Chassis
+
+hook.add("Input", "HandleEntityInput", function(Name, Value)
+    if Name == "Chassis" and Value and Value:isValid() then
+        Chassis = Value
+        print("Chassis found: " .. tostring(Chassis))
+    end
+end)
+
+local function FindNearest(speed)
+    for key, value in ipairs(TurnStates) do
+        local nkey, nvalue = next(TurnStates, key)
+        if (nkey == nil) then
+            return {value, value}
+        elseif (speed >= value[1] and speed <= nvalue[1]) then
+            return {value, nvalue}
+        end
+    end
+end
+
+local function LerpTurnState(speed)
+    local PointPairs = FindNearest(speed)
+    local SpeedLerp = math.remap(speed, PointPairs[1][1], PointPairs[2][1], 0, 1)
+    
+    return math.lerp(SpeedLerp, PointPairs[1][2], PointPairs[2][2]), math.lerp(SpeedLerp, PointPairs[1][3], PointPairs[2][3])
+end
+
+local Turn = 0
+
+hook.add("Tick", "UpdateAngles", function()
+    if not Chassis then return end
+    
+    local MPH = math.round((Chassis:getVelocity():getLength() / 16) * 0.6818)
+    local TurnRate, TurnAngle = LerpTurnState(MPH)
+    
+    local A = (wire.ports.Pod ~= nil and wire.ports.Pod["A"] or 0)
+    local D = (wire.ports.Pod ~= nil and wire.ports.Pod["D"] or 0)
+    
+    Turn = Turn + math.clamp( (A - D) * TurnAngle - Turn, -TurnRate, TurnRate )
+    chip():setAngles( Chassis:localToWorldAngles( Angle(0, Turn, -Turn/9) ) )
+end)
+
+hook.add("PhysgunDrop", "UpdateFrozenState", function(ply, ent)
+    if ent == chip() then chip():setFrozen(true) end
+end)

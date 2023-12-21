@@ -1,0 +1,10 @@
+--@name GlitchSpawn
+--@author Feven
+--@server
+
+hook.add("PlayerDeath", "respawn", function(ply, inflictor, attacker)
+    if ply ~= owner() then return end
+    concmd("sbsu ragdoll ^")
+    concmd("sbsu unragdoll ^")
+    return
+end)

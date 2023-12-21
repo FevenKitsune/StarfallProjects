@@ -1,0 +1,39 @@
+--@name Simple Third Person
+--@author {toby} (Ported to StarfallEx by Feven Kitsune)
+--@client
+
+if player() ~= owner() then
+    return
+end
+
+local DISTANCE = 75
+local POS_X = 30
+local POS_Y = 0
+
+local LATCH = false
+
+local IsThirdPerson = false
+local Key = KEY.HOME
+enableHud(owner(), true)    
+
+hook.add( "CalcView", "CalculateThirdPerson", function( pos, ang, fov, znear, zfar )
+    if input.isKeyDown(Key) and LATCH == false then
+        LATCH = true
+        IsThirdPerson = not IsThirdPerson
+    end
+    
+    if not input.isKeyDown(Key) then
+        LATCH = false
+    end
+    
+    if IsThirdPerson then
+        local view = {
+            origin = pos - ( ang:getForward() * DISTANCE ) + (ang:getRight() * POS_X) + (ang:getUp() * POS_Y),
+            angles = ang,
+            fov = fov,
+            drawviewer = true
+        }
+  
+        return view
+    end
+end)

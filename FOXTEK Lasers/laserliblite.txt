@@ -1,0 +1,31 @@
+--@name LaserLibLite
+--@author Feven (Forked from {toby})
+--@shared
+
+local Laser = class("Laser")
+
+function Laser:initialize(Color)
+    self.xSize = 0.04
+    self.ySize = 0.04
+    
+--[[
+    self.Line = holograms.create( chip():getPos(), Angle(), "models/holograms/cube.mdl", Vector(1, self.xSize, self.ySize) )
+    self.Line:setColor(Color)
+    self.CubeSize = self.Line:obbSize()[2]
+    self.Line:suppressEngineLighting(true)
+]]
+end
+
+function Laser:think(ray)
+    
+--[[
+    self.rayMidPoint = (ray.StartPos + ray.HitPos) / 2
+    self.Line:setPos( self.rayMidPoint )
+    self.Line:setAngles( (ray.HitPos - ray.StartPos):getAngle() )
+    self.Line:setScale( Vector( (ray.HitPos - ray.StartPos):getLength() / self.CubeSize, self.xSize, self.ySize ) )
+]]
+end
+
+return Laser
+
+

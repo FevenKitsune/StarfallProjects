@@ -1,0 +1,113 @@
+--@name Box Factory
+--@author Feven (Forked from {Toby})
+--@shared
+
+-- Check if the code is running on the server.
+if SERVER then
+    chip():setAngles(Angle())
+    -- Receive data from the client using the "dataTransfer" network message.
+    net.receive("dataTransfer", function()
+        local SVData = net.readTable()
+        local midpoint = net.readVector()
+        table.remove(SVData, 9)
+        local vdata = table.copy(SVData)
+        local newbox = prop.createCustom(
+            midpoint,
+            Angle(0, 0, 0),
+            { SVData }, -- Use the single cubeVertices table
+            true
+        )
+        newbox:setMaterial("debug/env_cubemap_model")
+        --net.start("generateMesh")
+        --net.writeTable(vtab)
+        --net.writeEntity(newbox)
+        --printTable(vdata)
+        --net.send()
+    end)
+else
+    net.receive("generateMesh", function()
+        local vdata = net.readTable()
+        local e = net.readEntity(function(e)
+            local mesht, vert = mesh.findConvexHull(vdata, nil)
+            local meshd = mesh.createFromTable(mesht, nil)
+            e:setMesh(meshd)
+            --e:setMaterial("brick/brick_model")
+        end)
+        
+    end)
+    
+    if player() != owner() then return end
+    
+    -- Check if the code is running on the client and if the player is the owner of the chip.
+    local HasPressed = false
+    local Colorrr = Color(255,0,0,255)
+    local Pos1 = Vector(0,0,0)
+    local Pos2 = Vector(0,0,0)
+    local Data = {}
+    -- Create a hook that runs on every tick.
+    hook.add('tick','',function()
+        -- Check if the player is pressing the attack key and has not pressed it before, and if they have no active weapon.
+        if player():keyDown(IN_KEY.ATTACK) and HasPressed == false and player():getActiveWeapon():getClass() == "none" then
+            -- Store the first position when the attack key is pressed.
+            Pos1 = chip():worldToLocal(player():getEyeTrace().HitPos)
+            HasPressed = true
+        end
+        
+        -- Check if the player is pressing the attack key and has pressed it before, and if they have no active weapon.
+        if player():keyDown(IN_KEY.ATTACK) and HasPressed == true and player():getActiveWeapon():getClass() == "none" then
+            -- Store the second position when the attack key is still pressed.
+            Pos2 = chip():worldToLocal(player():getEyeTrace().HitPos)
+        end
+        
+        -- Check if the player has released the attack key after pressing it.
+        if not player():keyDown(IN_KEY.ATTACK) and HasPressed == true then
+            HasPressed = false
+            
+            -- Add the positions to the Data table and send it to the server.
+            table.insert(Data, {Pos1,Pos2})
+            v = {chip():localToWorld(Pos1), chip():localToWorld(Pos2)}
+            local midpoint = (v[1] + v[2]) / 2
+            local points = {
+                worldToLocal(v[1], Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(v[2], Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[1][1], v[2][2], v[2][3]), Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[2][1], v[1][2], v[2][3]), Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[1][1], v[1][2], v[2][3]), Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[1][1], v[2][2], v[1][3]), Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[2][1], v[1][2], v[1][3]), Angle(0,0,0), midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(v[2][1], v[2][2], v[1][3]), Angle(0,0,0), midpoint, Angle(0,0,0))
+            }
+            net.start("dataTransfer")
+            net.writeTable(points)
+            net.writeVector(midpoint)
+            net.send()
+            table.remove(Data)
+        end
+    end)
+    
+    -- Enable HUD (Heads-Up Display) for the player.
+    enableHud(player(),true)
+    
+    -- Create a hook that runs after drawing opaque renderables.
+    hook.add('postdrawopaquerenderables','',function()
+        local Ang = chip():getAngles()
+        
+        -- Draw wireframe and solid boxes for selected positions and data.
+        render.setColor(Colorrr:setA(255))
+        render.draw3DWireframeBox(chip():getPos(),Ang,Pos1,Pos2)
+        render.draw3DWireframeBox(chip():getPos(),Ang,Pos2,Pos1)
+        render.setColor(Colorrr:setA(5))
+        render.draw3DBox(chip():getPos(),Ang,Pos1,Pos2)
+        render.draw3DBox(chip():getPos(),Ang,Pos2,Pos1)
+        
+        -- Iterate through Data and draw wireframe and solid boxes for stored positions.
+        for k, v in pairs(Data) do
+            render.setColor(Colorrr:setA(255))
+            render.draw3DWireframeBox(chip():getPos(),Ang,v[1],v[2])
+            render.draw3DWireframeBox(chip():getPos(),Ang,v[2],v[1])
+            render.setColor(Colorrr:setA(5))
+            render.draw3DBox(chip():getPos(),Ang,v[1],v[2])
+            render.draw3DBox(chip():getPos(),Ang,v[2],v[1])
+        end
+    end)
+end

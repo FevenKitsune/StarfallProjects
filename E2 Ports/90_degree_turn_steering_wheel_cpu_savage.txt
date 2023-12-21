@@ -1,0 +1,53 @@
+--@name 90 degree turn Steering Wheel CPU Savage (SF Port by FOXTEK)
+--@author FOXTEK
+--@server
+
+--[[
+@name 90 degree turn Steering Wheel CPU Savage
+@inputs Ang
+@outputs Angle
+@persist E:entity Rotate
+@trigger 
+
+
+
+if(first()|dupefinished())
+{}
+    E = entity()
+    Color1 = vec(35, 35, 35)
+    Scale = 0.6
+    
+  
+    holoCreate(1, E:toWorld(vec(0, 0, 2)))
+    holoAng(1, E:toWorld(ang(0,0,90)))
+    holoModel(1, "models/sprops/trans/stwheels/stwheel_7.mdl")
+    holoParent(1, E)
+    holoScaleUnits(1, vec(5.75, 22.25, 22.25) * Scale)
+    holoColor(1, Color1)
+    holoMaterial(1, "WTP/cloth_1")
+
+
+holoAng(1, E:toWorld(ang(-90, -Ang*3, 90)))
+
+
+]]
+
+wire.adjustPorts({
+    Ang = "number",
+}, {
+    Angle = "number"
+})
+
+local E = chip()
+local Color1 = Color( 35, 35, 35 )
+local Scale = 0.8
+
+local wheel = hologram.create( E:localToWorld(Vector(0, 0, 2)), E:localToWorldAngles(Angle(0, 0, 90)), "models/sprops/trans/stwheels/stwheel_7.mdl", Vector(1.6, 1, 1)*Scale )
+wheel:setColor( Color1 )
+wheel:setMaterial( "WTP/cloth_1" )
+wheel:setParent(E)
+
+hook.add("tick", "UpdateAngles", function()
+    wheel:setPos( E:localToWorld(Vector(0, 0, 2)) )
+    wheel:setAngles( E:localToWorldAngles( Angle(-90, -wire.ports.Ang * 3, 90) ) )
+end)

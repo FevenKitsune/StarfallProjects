@@ -1,0 +1,45 @@
+--@name Clairvoyance
+--@author Feven
+--@client
+
+--(Forked from {toby}'s third-person script)
+
+if player() ~= owner() then
+    return
+end
+
+local DISTANCE = 100
+local TARGET = ""
+
+local LATCH = false
+local IsThirdPerson = false
+local Key = KEY.HOME
+enableHud(owner(), true)    
+
+
+local etarget = find.playersByName(TARGET)[1]
+
+hook.add( "CalcView", "CalculateThirdPerson", function( pos, ang, fov, znear, zfar )
+    if input.isKeyDown(Key) and LATCH == false then
+        LATCH = true
+        IsThirdPerson = not IsThirdPerson
+    end
+    
+    if not input.isKeyDown(Key) then
+        LATCH = false
+    end
+    
+    local epos = etarget:getEyePos()
+    local eang = etarget:getEyeAngles()
+    
+    if IsThirdPerson then
+        local view = {
+            origin = epos - (eang:getForward() * DISTANCE),
+            angles = eang,
+            fov = fov,
+            drawviewer = true
+        }
+  
+        return view
+    end
+end)

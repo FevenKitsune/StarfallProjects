@@ -1,0 +1,653 @@
+--@name Advanced Web Player
+--@author Feven Kitsune (Forked from Redox)
+--@model
+--@shared
+--@model models/props_lab/citizenradio.mdl
+
+local DEBUG = false
+local ONOWNER = false
+local FADE_START = 550
+local FADE_END = 600
+local PLAYDIST = 600
+local DEFAULT_VOLUME = 2
+local DECAY_FACTOR = 0.9
+local ATTACK_FACTOR = 0.1
+
+-- Define an empty table to store URLs
+local urls = {
+    -- Swiss Army Man Soundtrack
+    "https://www.dropbox.com/s/ku6zhzy80p2gkt5/01%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Intro%20Song%20%28Feat.%20Paul%20Dano%29.ogg?dl=0",
+    "https://www.dropbox.com/s/b4u676iys16nqq4/02%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Where%20Did%20You%20Come%20From%20%28Feat.%20Paul%20Dano%29.ogg?dl=0",
+    "https://www.dropbox.com/s/zft9wqqh8mh39n4/03%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Cave%20Ballad%20%28Feat.%20Paul%20Dano%29.ogg?dl=0",
+    "https://www.dropbox.com/s/o2kqto1h0v73gmj/04%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Hank%20Drinks.ogg?dl=0",
+    "https://www.dropbox.com/s/kpnvjevovfuh6ki/05%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20History%20Of%20The%20Universe%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/182lzzilbz7ud86/06%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Fetishes%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/eb5w0cirljtp0we/07%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20When%20I%20Think%20About%20Mom%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/d561wo1vwy5uay9/08%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Don%27t%20Overthink%20Things.ogg?dl=0",
+    "https://www.dropbox.com/s/jl9riyffoj3j41h/09%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Loved%20Back%20To%20Life.ogg?dl=0",
+    "https://www.dropbox.com/s/px416zuhn34pkt4/10%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Cotton%20Eye%20Joe%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/rzgg9meml1xontm/11%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Jurassic%20Park%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/uqojba9wvpi4621/12%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Talk%20To%20Her%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/rc0nswk91xd78yx/13%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Love%20Love%20%28Manny%27s%20Song%29%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/qfhebo7obb6zx0z/14%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Montage%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/md8gkut2mbk6sth/15%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Underwater.ogg?dl=0",
+    "https://www.dropbox.com/s/9x54a18whvmet2v/16%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20River%20Rocket.ogg?dl=0",
+    "https://www.dropbox.com/s/g4zh2ypt9jf2bwx/17%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Liar.ogg?dl=0",
+    "https://www.dropbox.com/s/3gmx4fp8fs4fvu0/18%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20The%20Big%20Racoon.ogg?dl=0",
+    "https://www.dropbox.com/s/ziaieal9tvieq1y/19%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Treetops%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/3ayn11hasogr043/20%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Goodbye%20Hello%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=0",
+    "https://www.dropbox.com/s/y5mymxupksvraks/21%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Don%27t%20Tell%20Sarah.ogg?dl=0",
+    "https://www.dropbox.com/s/ro8p1hmo9qh1oik/22%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Run%20Down%20The%20Mountain.ogg?dl=0",
+    "https://www.dropbox.com/s/h7j0vhlolykls65/23%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Finale.ogg?dl=0",
+    "https://www.dropbox.com/s/8q9vo71l886tmo0/24%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20A%20Better%20Way.ogg?dl=0",
+    
+    -- Modest Mouse - Good News For People Who Love Bad News
+    "https://www.dropbox.com/s/3gjllxwtol5ooik/01%20-%20Modest%20Mouse%20-%20Horn%20Intro.ogg?dl=0",
+    "https://www.dropbox.com/s/t4sxb56a7b76egt/02%20-%20Modest%20Mouse%20-%20The%20World%20At%20Large.ogg?dl=0",
+    "https://www.dropbox.com/s/ixmb5x7j4jo5cp1/03%20-%20Modest%20Mouse%20-%20Float%20On.ogg?dl=0",
+    "https://www.dropbox.com/s/cy2d25jdfryfb9s/04%20-%20Modest%20Mouse%20-%20Ocean%20Breathes%20Salty.ogg?dl=0",
+    "https://www.dropbox.com/s/kgzl32p2dsqwgr5/05%20-%20Modest%20Mouse%20-%20Dig%20Your%20Grave.ogg?dl=0",
+    "https://www.dropbox.com/s/yk8k4zgguvrqv1p/06%20-%20Modest%20Mouse%20-%20Bury%20Me%20With%20It.ogg?dl=0",
+    "https://www.dropbox.com/s/2sgxjngro4zqupt/07%20-%20Modest%20Mouse%20-%20Dance%20Hall.ogg?dl=0",
+    "https://www.dropbox.com/s/nj3n7u7vlrfib5a/08%20-%20Modest%20Mouse%20-%20Bukowski.ogg?dl=0",
+    "https://www.dropbox.com/s/az87ne2ai3wsen4/09%20-%20Modest%20Mouse%20-%20This%20Devil%27s%20Workday.ogg?dl=0",
+    "https://www.dropbox.com/s/0znsxy6cum2rps8/10%20-%20Modest%20Mouse%20-%20The%20View.ogg?dl=0",
+    "https://www.dropbox.com/s/ydaheyiknx53ccl/11%20-%20Modest%20Mouse%20-%20Satin%20In%20A%20Coffin.ogg?dl=0",
+    "https://www.dropbox.com/s/xf327ggzez0v6rz/12%20-%20Modest%20Mouse%20-%20Interlude%20%28Milo%29.ogg?dl=0",
+    "https://www.dropbox.com/s/94cntphn28zq7bd/13%20-%20Modest%20Mouse%20-%20Blame%20It%20On%20the%20Tetons.ogg?dl=0",
+    "https://www.dropbox.com/s/qd1naaw2nvp9kgp/14%20-%20Modest%20Mouse%20-%20Black%20Cadillacs.ogg?dl=0",
+    "https://www.dropbox.com/s/kxqj4wbxv283iqd/15%20-%20Modest%20Mouse%20-%20One%20Chance.ogg?dl=0",
+    "https://www.dropbox.com/s/a0dtgsy75a3liz9/16%20-%20Modest%20Mouse%20-%20The%20Good%20Times%20Are%20Killing%20Me.ogg?dl=0",
+    
+    -- The Strokes - Comedown Machine
+    "https://www.dropbox.com/s/alpmgmsax8ylirj/01%20-%20The%20Strokes%20-%20Tap%20Out.ogg?dl=0",
+    "https://www.dropbox.com/s/ycp7m7i98ubrde4/02%20-%20The%20Strokes%20-%20All%20the%20Time.ogg?dl=0",
+    "https://www.dropbox.com/s/k50sbg2f55sz3vc/03%20-%20The%20Strokes%20-%20One%20Way%20Trigger.ogg?dl=0",
+    "https://www.dropbox.com/s/pyxst0etujixiea/04%20-%20The%20Strokes%20-%20Welcome%20to%20Japan.ogg?dl=0",
+    "https://www.dropbox.com/s/lqv070gc99so2lz/05%20-%20The%20Strokes%20-%2080%27s%20Comedown%20Machine.ogg?dl=0",
+    "https://www.dropbox.com/s/sqyzp5ye6jyfbfq/06%20-%20The%20Strokes%20-%2050-50.ogg?dl=0",
+    "https://www.dropbox.com/s/i5qrmrgtohgwm6b/07%20-%20The%20Strokes%20-%20Slow%20Animals.ogg?dl=0",
+    "https://www.dropbox.com/s/t9spa5h6yovh8px/08%20-%20The%20Strokes%20-%20Partners%20in%20Crime.ogg?dl=0",
+    "https://www.dropbox.com/s/e0u59cvu22znnac/09%20-%20The%20Strokes%20-%20Chances.ogg?dl=0",
+    "https://www.dropbox.com/s/dctjfc12cob2ewy/10%20-%20The%20Strokes%20-%20Happy%20Ending.ogg?dl=0",
+    "https://www.dropbox.com/s/xnuzn8euj2we654/11%20-%20The%20Strokes%20-%20Call%20It%20Fate%2C%20Call%20It%20Karma.ogg?dl=0",
+    
+    -- Fries on the Side
+    "https://www.dropbox.com/s/3qy2wax2tsodo8f/01%20-%20Fries%20On%20The%20Side%20-%20A%20Happy%20Jam.ogg?dl=0",
+    
+    -- The Neighborhood - I Love You
+    "https://www.dropbox.com/s/ucr86wjpjjt1kxw/01%20-%20The%20Neighbourhood%20-%20How.ogg?dl=0",
+    "https://www.dropbox.com/s/au1dtf8ldboarvh/02%20-%20The%20Neighbourhood%20-%20Afraid.ogg?dl=0",
+    "https://www.dropbox.com/s/la6en6jl2l1axgr/03%20-%20The%20Neighbourhood%20-%20Everybody%27s%20Watching%20Me%20%28Uh%20Oh%29.ogg?dl=0",
+    "https://www.dropbox.com/s/qgjozod5368lma3/04%20-%20The%20Neighbourhood%20-%20Sweater%20Weather.ogg?dl=0",
+    "https://www.dropbox.com/s/z0z22oh32l9vtx2/05%20-%20The%20Neighbourhood%20-%20Let%20It%20Go.ogg?dl=0",
+    "https://www.dropbox.com/s/h1spurv8gs2avyv/06%20-%20The%20Neighbourhood%20-%20Alleyways.ogg?dl=0",
+    "https://www.dropbox.com/s/n3pxglh3oye5fdx/07%20-%20The%20Neighbourhood%20-%20W.D.Y.W.F.M.ogg?dl=0",
+    "https://www.dropbox.com/s/sb78f8gjvptqvf8/08%20-%20The%20Neighbourhood%20-%20Flawless.ogg?dl=0",
+    "https://www.dropbox.com/s/t59vqxyac9p97rt/09%20-%20The%20Neighbourhood%20-%20Female%20Robbery.ogg?dl=0",
+    "https://www.dropbox.com/s/vjqtte0bd138w08/10%20-%20The%20Neighbourhood%20-%20Staying%20Up.ogg?dl=0",
+    "https://www.dropbox.com/s/hagxg6og062cssi/11%20-%20The%20Neighbourhood%20-%20Float.ogg?dl=0",
+    
+    -- Vance Joy - Dream Your Life Away
+    "https://www.dropbox.com/s/xvrtgklgu6gljmp/01%20-%20Vance%20Joy%20-%20Winds%20Of%20Change.ogg?dl=0",
+    "https://www.dropbox.com/s/v20wsdkh79abm42/02%20-%20Vance%20Joy%20-%20Mess%20Is%20Mine.ogg?dl=0",
+    "https://www.dropbox.com/s/ajbkiur8114pjjo/03%20-%20Vance%20Joy%20-%20Wasted%20Time.ogg?dl=0",
+    "https://www.dropbox.com/s/py14ke3eipp41ah/04%20-%20Vance%20Joy%20-%20Riptide.ogg?dl=0",
+    "https://www.dropbox.com/s/jlft26ldlb2ytaw/05%20-%20Vance%20Joy%20-%20Who%20Am%20I.ogg?dl=0",
+    "https://www.dropbox.com/s/umhxhc8mww2p431/06%20-%20Vance%20Joy%20-%20From%20Afar.ogg?dl=0",
+    "https://www.dropbox.com/s/3rhfq8wvn74zltl/07%20-%20Vance%20Joy%20-%20We%20All%20Die%20Trying%20To%20Get%20It%20Right.ogg?dl=0",
+    "https://www.dropbox.com/s/rkx4vy5ei0wjqm7/08%20-%20Vance%20Joy%20-%20Georgia.ogg?dl=0",
+    "https://www.dropbox.com/s/qu1l14k40qk95f5/09%20-%20Vance%20Joy%20-%20Red%20Eye.ogg?dl=0",
+    "https://www.dropbox.com/s/vuwyl6fckif2t3g/10%20-%20Vance%20Joy%20-%20First%20Time.ogg?dl=0",
+    "https://www.dropbox.com/s/1azqgt7uqo0u8pg/11%20-%20Vance%20Joy%20-%20All%20I%20Ever%20Wanted.ogg?dl=0",
+    "https://www.dropbox.com/s/l2j1l73tt74spoq/12%20-%20Vance%20Joy%20-%20Best%20That%20I%20Can.ogg?dl=0",
+    "https://www.dropbox.com/s/qvlyl2rza8diypb/13%20-%20Vance%20Joy%20-%20My%20Kind%20Of%20Man.ogg?dl=0",
+    
+    -- Avicii - True
+    "https://www.dropbox.com/s/lyg8klz4tei0kba/01%20-%20Avicii%20-%20Wake%20Me%20Up.ogg?dl=0",
+    "https://www.dropbox.com/s/q6mdixmfmfj3dit/02%20-%20Avicii%20-%20You%20Make%20Me.ogg?dl=0",
+    "https://www.dropbox.com/s/y5o6c6erso2o8od/03%20-%20Avicii%20-%20Hey%20Brother.ogg?dl=0",
+    "https://www.dropbox.com/s/ppclowwsu162ad4/04%20-%20Avicii%20-%20Addicted%20to%20You.ogg?dl=0",
+    "https://www.dropbox.com/s/xm6myodkz38zzif/05%20-%20Avicii%20-%20Dear%20Boy.ogg?dl=0",
+    "https://www.dropbox.com/s/iknimp30czb4c95/06%20-%20Avicii%20-%20Liar%20Liar.ogg?dl=0",
+    "https://www.dropbox.com/s/xiswfii3vvw9hr4/07%20-%20Avicii%20-%20Shame%20on%20Me.ogg?dl=0",
+    "https://www.dropbox.com/s/af4pdg9kqzwdbzp/08%20-%20Avicii%20-%20Lay%20Me%20Down.ogg?dl=0",
+    "https://www.dropbox.com/s/gito5ig8vy2mysr/09%20-%20Avicii%20-%20Hope%20There%27s%20Someone.ogg?dl=0",
+    "https://www.dropbox.com/s/35jzaoy6iorgsnp/10%20-%20Avicii%20-%20Heart%20Upon%20My%20Sleeve.ogg?dl=0",
+    
+    -- 500 Miles Proclaimers
+    "https://www.dropbox.com/s/jbd8yh16743gntf/01%20-%20I%27m%20Gonna%20Be%20%28500%20Miles%29%20-%20The%20Proclaimers.ogg?dl=0",
+    
+    -- Tainted Love
+    "https://www.dropbox.com/s/yrndcfnfk8dzw7q/02%20-%20Soft%20Cell%20-%20Tainted%20Love.ogg?dl=0",
+    
+    -- Of Monsters and Men - My Head Is An Animal
+    "https://www.dropbox.com/s/o32m14q3bict03x/01%20-%20Of%20Monsters%20and%20Men%20-%20Dirty%20Paws.ogg?dl=0",
+    "https://www.dropbox.com/s/iew5itdg4sl6sdy/02%20-%20Of%20Monsters%20and%20Men%20-%20King%20And%20Lionheart%20%282011%20Iceland%20Release%20Version%29.ogg?dl=0",
+    "https://www.dropbox.com/s/vi4yjj1ne8k16as/03%20-%20Of%20Monsters%20and%20Men%20-%20Numb%20Bears%20%282011%20Iceland%20Release%20Version%29.ogg?dl=0",
+    "https://www.dropbox.com/s/ko7zlhzi0uaa9hi/04%20-%20Of%20Monsters%20and%20Men%20-%20Sloom.ogg?dl=0",
+    "https://www.dropbox.com/s/w6ma536wishp8z9/05%20-%20Of%20Monsters%20and%20Men%20-%20Little%20Talks.ogg?dl=0",
+    "https://www.dropbox.com/s/oqv67bqs7v448y1/06%20-%20Of%20Monsters%20and%20Men%20-%20From%20Finner.ogg?dl=0",
+    "https://www.dropbox.com/s/hn3ym6qdhbr8e9o/07%20-%20Of%20Monsters%20and%20Men%20-%20Six%20Weeks.ogg?dl=0",
+    "https://www.dropbox.com/s/88bowlmrdfb9s0g/08%20-%20Of%20Monsters%20and%20Men%20-%20Love%20Love%20Love.ogg?dl=0",
+    "https://www.dropbox.com/s/nud0f9e1vcbz04r/09%20-%20Of%20Monsters%20and%20Men%20-%20Your%20Bones.ogg?dl=0",
+    "https://www.dropbox.com/s/i8lpmne4mus65mk/10%20-%20Of%20Monsters%20and%20Men%20-%20Lakehouse%20%282011%20Iceland%20Release%20Version%29.ogg?dl=0",
+    "https://www.dropbox.com/s/wg49g8lkcs9bc2u/11%20-%20Of%20Monsters%20and%20Men%20-%20Yellow%20Light.ogg?dl=0",
+    "https://www.dropbox.com/s/yezogwzbh7oy4a9/12%20-%20Of%20Monsters%20and%20Men%20-%20Sinking%20Man%20%282011%20Iceland%20Release%20Version%29.ogg?dl=0",
+    "https://www.dropbox.com/s/v5dxn93w98e1xxv/13%20-%20Of%20Monsters%20and%20Men%20-%20Phantom.ogg?dl=0",
+    "https://www.dropbox.com/s/o92kzp87elifkqm/14%20-%20Of%20Monsters%20and%20Men%20-%20Sugar%20in%20a%20Bowl.ogg?dl=0",
+    
+    -- austenyo - minialbum
+    "https://www.dropbox.com/s/3tt10cp3s7f0wa8/01%20-%20austenyo%20-%20commercial.ogg?dl=0",
+    "https://www.dropbox.com/s/qgzx3t55d57i6v0/02%20-%20austenyo%20-%20daytoday.ogg?dl=0",
+    "https://www.dropbox.com/s/gprso345xr6j8st/03%20-%20austenyo%20-%20backup%20generator.ogg?dl=0",
+    "https://www.dropbox.com/s/z5rw43lmdbtweew/04%20-%20austenyo%20-%20play.ogg?dl=0",
+    "https://www.dropbox.com/s/9e7yvnfn7cj0fp3/05%20-%20austenyo%20-%20height.ogg?dl=0",
+    "https://www.dropbox.com/s/vml33gwuv7kvp78/06%20-%20austenyo%20-%20off-kilter.ogg?dl=0",
+    "https://www.dropbox.com/s/g8823vh4du7m2su/07%20-%20austenyo%20-%20supercool.ogg?dl=0",
+    "https://www.dropbox.com/s/86kjjc65luiuez1/08%20-%20austenyo%20-%20computer%20talk.ogg?dl=0",
+    
+    -- Tsonars Natural Light
+    "https://www.dropbox.com/s/ssfqnz1qdawsayp/00%20-%20Porter%20Robinson%20-%20Natural%20Light%20%28Tsonars%20Remix%29.ogg?dl=0",
+    
+    -- Jakubi Couch Potato
+    "https://www.dropbox.com/s/ui2lzvyecgjrwet/01%20-%20Jakubi%20-%20Couch%20Potato.ogg?dl=0",
+    
+    "https://www.dropbox.com/s/ec55jkoxqfri4d0/01%20-%20Liana%20Flores%20-%20Rises%20The%20Moon.ogg?dl=0",
+    "https://www.dropbox.com/s/oc59rflu9pf34be/01%20-%20The%20Longest%20Johns%20-%20Moby%20Duck.ogg?dl=0",
+    "https://www.dropbox.com/s/fzuzdyuust1yril/01%20-%20The%20Longest%20Johns%20-%20Got%20No%20Beard.ogg?dl=0",
+    "https://www.dropbox.com/s/pcbfrw0aac8ufj8/03%20-%20The%20Longest%20Johns%20-%20Hard%20Times%20Come%20Again%20No%20More.ogg?dl=0",
+    "https://www.dropbox.com/s/z0re19wj303yj4s/01%20-%20half.alive%20-%20What%27s%20Wrong.ogg?dl=0",
+    "https://www.dropbox.com/s/1weevc3nfrvw400/00%20-%20half.alive%20-%20still%20feel..ogg?dl=0",
+    "https://www.dropbox.com/s/bu2amst3vqz6zzr/01%20-%20Majical%20Cloudz%20-%20This%20is%20Magic.ogg?dl=0",
+    "https://www.dropbox.com/s/bw4datvvnorn6u4/01%20-%20Majical%20Cloudz%20-%20Downtown.ogg?dl=0",
+    "https://www.dropbox.com/s/vpcpuu6ub1ndr1x/01%20-%20The%20Happy%20Fits%20-%20Mary.ogg?dl=0",
+    "https://www.dropbox.com/s/7l4ivcpmjva25x5/01%20-%20Saint%20Motel%20-%20Dear%20Dictator.ogg?dl=0",
+    
+    -- Arcade Fire Everything Now
+    "https://www.dropbox.com/s/b27bqi4urtakmo3/01%20-%20Arcade%20Fire%20-%20Everything_Now%20%28continued%29.ogg?dl=0",
+    "https://www.dropbox.com/s/h4tigdjbmn2tf3l/02%20-%20Arcade%20Fire%20-%20Everything%20Now.ogg?dl=0",
+    "https://www.dropbox.com/s/nkses7jurqlpegs/03%20-%20Arcade%20Fire%20-%20Signs%20of%20Life.ogg?dl=0",
+    "https://www.dropbox.com/s/49dkb7ckdpvmbc7/04%20-%20Arcade%20Fire%20-%20Creature%20Comfort.ogg?dl=0",
+    "https://www.dropbox.com/s/58cpm01mtjr49lu/05%20-%20Arcade%20Fire%20-%20Peter%20Pan.ogg?dl=0",
+    "https://www.dropbox.com/s/0a9m7tp8k8jrr4q/06%20-%20Arcade%20Fire%20-%20Chemistry.ogg?dl=0",
+    "https://www.dropbox.com/s/s7b3iy1wnd36ns9/07%20-%20Arcade%20Fire%20-%20Infinite%20Content.ogg?dl=0",
+    "https://www.dropbox.com/s/is3e2julahan892/08%20-%20Arcade%20Fire%20-%20Infinite_Content.ogg?dl=0",
+    "https://www.dropbox.com/s/mie4h25awo7s0pn/09%20-%20Arcade%20Fire%20-%20Electric%20Blue.ogg?dl=0",
+    "https://www.dropbox.com/s/316i013xy3sdw22/10%20-%20Arcade%20Fire%20-%20Good%20God%20Damn.ogg?dl=0",
+    "https://www.dropbox.com/s/99cs7vxxhbd31tu/11%20-%20Arcade%20Fire%20-%20Put%20Your%20Money%20on%20Me.ogg?dl=0",
+    "https://www.dropbox.com/s/ofovcruww9ifepm/12%20-%20Arcade%20Fire%20-%20We%20Don%27t%20Deserve%20Love.ogg?dl=0",
+    "https://www.dropbox.com/s/4vigtdrvyigg74r/13%20-%20Arcade%20Fire%20-%20Everything%20Now%20%28continued%29.ogg?dl=0",
+    
+    -- LCD Soundsystem american dream
+    "https://www.dropbox.com/s/w7e1f7g2enmaerg/01%20-%20LCD%20Soundsystem%20-%20oh%20baby.ogg?dl=0",
+    "https://www.dropbox.com/s/c7ea8k8v92gumz8/02%20-%20LCD%20Soundsystem%20-%20other%20voices.ogg?dl=0",
+    "https://www.dropbox.com/s/qdct5gr1i0wtj10/03%20-%20LCD%20Soundsystem%20-%20i%20used%20to.ogg?dl=0",
+    "https://www.dropbox.com/s/80juw69d6vw49b2/04%20-%20LCD%20Soundsystem%20-%20change%20yr%20mind.ogg?dl=0",
+    "https://www.dropbox.com/s/yg8vosdoej6ws5d/05%20-%20LCD%20Soundsystem%20-%20how%20do%20you%20sleep.ogg?dl=0",
+    "https://www.dropbox.com/s/fs9xwwukw1qae3s/06%20-%20LCD%20Soundsystem%20-%20tonite.ogg?dl=0",
+    "https://www.dropbox.com/s/xupgs5hbkwfc591/07%20-%20LCD%20Soundsystem%20-%20call%20the%20police.ogg?dl=0",
+    "https://www.dropbox.com/s/olk9fkwav5i2pgk/08%20-%20LCD%20Soundsystem%20-%20american%20dream.ogg?dl=0",
+    "https://www.dropbox.com/s/yjw3y5jxlou0nzx/09%20-%20LCD%20Soundsystem%20-%20emotional%20haircut.ogg?dl=0",
+    "https://www.dropbox.com/s/n3qa2csk8igfik6/10%20-%20LCD%20Soundsystem%20-%20black%20screen.ogg?dl=0",
+    
+    -- LCD Soundsystem Sound of Silver
+    "https://www.dropbox.com/s/qzrhul85wjoye7e/01%20-%20LCD%20Soundsystem%20-%20Get%20Innocuous%21.ogg?dl=0",
+    "https://www.dropbox.com/s/g9w6b5pkw0tmgmb/02%20-%20LCD%20Soundsystem%20-%20Time%20To%20Get%20Away.ogg?dl=0",
+    "https://www.dropbox.com/s/nloabm1xubodiyn/03%20-%20LCD%20Soundsystem%20-%20North%20American%20Scum.ogg?dl=0",
+    "https://www.dropbox.com/s/f2ywhha6jyizsno/04%20-%20LCD%20Soundsystem%20-%20Someone%20Great.ogg?dl=0",
+    "https://www.dropbox.com/s/21dqcqejkda03mg/05%20-%20LCD%20Soundsystem%20-%20All%20My%20Friends.ogg?dl=0",
+    "https://www.dropbox.com/s/3n423m966c055iq/06%20-%20LCD%20Soundsystem%20-%20Us%20V%20Them.ogg?dl=0",
+    "https://www.dropbox.com/s/hdnzyisdjorxhpl/07%20-%20LCD%20Soundsystem%20-%20Watch%20The%20Tapes.ogg?dl=0",
+    "https://www.dropbox.com/s/c2cs98obvdcf2sa/08%20-%20LCD%20Soundsystem%20-%20Sound%20Of%20Silver.ogg?dl=0",
+    "https://www.dropbox.com/s/kb4e264bv3tq9md/09%20-%20LCD%20Soundsystem%20-%20New%20York%2C%20I%20Love%20You%20But%20You%27re%20Bringing%20Me%20Down.ogg?dl=0",
+    
+    "https://www.dropbox.com/s/11myjlbbbjgaa02/01%20-%20Sleepy%20Soul%20-%20Bad%20At%20Being%20Alone.ogg?dl=0",
+    
+    -- Arcade Fire Neon Bible
+    "https://www.dropbox.com/s/e6nxjkay05upb2l/01%20-%20Arcade%20Fire%20-%20Black%20Mirror.ogg?dl=0",
+    "https://www.dropbox.com/s/uu1ua3i97vd5v5h/02%20-%20Arcade%20Fire%20-%20Keep%20the%20Car%20Running.ogg?dl=0",
+    "https://www.dropbox.com/s/ayouneqsflpsktm/03%20-%20Arcade%20Fire%20-%20Neon%20Bible.ogg?dl=0",
+    "https://www.dropbox.com/s/ttuqk2muz8g4s2c/04%20-%20Arcade%20Fire%20-%20Intervention.ogg?dl=0",
+    "https://www.dropbox.com/s/prxv4m83herlkxm/05%20-%20Arcade%20Fire%20-%20Black%20Wave%20-%20Bad%20Vibrations.ogg?dl=0",
+    "https://www.dropbox.com/s/6jllsyswucyd5v0/06%20-%20Arcade%20Fire%20-%20Ocean%20of%20Noise.ogg?dl=0",
+    "https://www.dropbox.com/s/jq30q57zesvxlzk/07%20-%20Arcade%20Fire%20-%20The%20Well%20and%20the%20Lighthouse.ogg?dl=0",
+    "https://www.dropbox.com/s/mknswf9fgki4xl4/08%20-%20Arcade%20Fire%20-%20%28Antichrist%20Television%20Blues%29.ogg?dl=0",
+    "https://www.dropbox.com/s/51dqs07t9jnh35j/09%20-%20Arcade%20Fire%20-%20Windowsill.ogg?dl=0",
+    "https://www.dropbox.com/s/1k3t2mpjr0irand/10%20-%20Arcade%20Fire%20-%20No%20Cars%20Go.ogg?dl=0",
+    "https://www.dropbox.com/s/ye3f2g08qwa99hz/11%20-%20Arcade%20Fire%20-%20My%20Body%20Is%20a%20Cage.ogg?dl=0"
+}
+
+-- Define an empty library table to store song information
+local library = {}
+
+if SERVER then
+    wire.adjustPorts(nil, {["FFT1"]="vector", ["FFT2"]="vector", ["FFT3"]="vector", ["FFT4"]="vector", ["FFT5"]="vector"})
+    
+    -- Server-side code
+    hook.add("PlayerSay", "Commands", function(ply, txt)
+        if ply ~= owner() then
+            return
+        end
+        
+        -- Check if the player wants to play a specific song
+        if txt:sub(1, 6) == "!song " then
+            -- Send a network message to play the song
+            net.start("playSong")
+            net.writeString(txt:sub(7))
+            net.send()
+            return ""
+        end
+        
+        -- Check if the player wants to set the volume
+        if txt:sub(1, 8) == "!volume " then
+            local vol = tonumber(txt:sub(9))
+            
+            if vol == nil then
+                print("Please specify volume! (1 - 10)")
+                return ""
+            end
+            
+            -- Send a network message to set the volume
+            net.start("setVolume")
+            net.writeInt(vol, 5)
+            net.send()
+            return ""
+        end
+        
+        -- Check if the player wants to set the volume (short command)
+        if txt:sub(1, 5) == "!vol " then
+            local vol = tonumber(txt:sub(6))
+            
+            if vol == nil then
+                print("Please specify volume! (1 - 10)")
+                return ""
+            end
+            
+            -- Send a network message to set the volume
+            net.start("setVolume")
+            net.writeInt(vol, 5)
+            net.send()
+            return ""
+        end
+        
+        -- Check if the player wants to pause the song
+        if txt:sub(1, 6) == "!pause" or txt:sub(1, 3) == "!pa" then
+            -- Send a network message to pause the song
+            net.start("pause")
+            net.send()
+            return ""
+        end
+        
+        -- Check if the player wants to play the song
+        if txt:sub(1, 5) == "!play" or txt:sub(1, 3) == "!pl" then
+            -- Send a network message to play the song
+            net.start("play")
+            net.send()
+            return ""
+        end
+        
+        -- Check if the player wants to stop the song
+        if txt:sub(1, 5) == "!stop" or txt:sub(1, 3) == "!st" then
+            -- Send a network message to stop the song
+            net.start("stop")
+            net.send()
+            return ""
+        end
+        
+        if txt:sub(1, 8) == "!library" then
+            net.start("library")
+            net.send()
+            return""
+        end
+    end)
+    
+    
+    net.receive("FFTPacket", function(len)
+        local fft_data = net.readTable()
+        local cFFT1 = Color(0, 1, (fft_data[1] or 0)*5):hsvToRGB()
+        local cFFT2 = Color(15, 1, (fft_data[2] or 0)*5):hsvToRGB()
+        local cFFT3 = Color(30, 1, (fft_data[3] or 0)*5):hsvToRGB()
+        local cFFT4 = Color(45, 1, (fft_data[4] or 0)*5):hsvToRGB()
+        local cFFT5 = Color(60, 1, (fft_data[5] or 0)*5):hsvToRGB()   
+        wire.ports.FFT1 = Vector(cFFT1[1], cFFT1[2], cFFT1[3])
+        wire.ports.FFT2 = Vector(cFFT2[1], cFFT2[2], cFFT2[3])
+        wire.ports.FFT3 = Vector(cFFT3[1], cFFT3[2], cFFT3[3])
+        wire.ports.FFT4 = Vector(cFFT4[1], cFFT4[2], cFFT4[3])
+        wire.ports.FFT5 = Vector(cFFT5[1], cFFT5[2], cFFT5[3])
+    end)
+else
+    -- Client-side code
+    local snd
+    local volume = DEFAULT_VOLUME
+    local currentName = ""
+    local currentArtist = ""
+    local fft_new = {}
+    local fft_previous = {}
+    local fft_smooth = {}
+    
+    -- Function to trim leading and trailing spaces from a string
+    function trim_string(str)
+        local start_index = 1
+        local end_index = #str
+
+        -- Find the index of the first non-space character from the beginning
+        while start_index <= #str and str:sub(start_index, start_index) == " " do
+            start_index = start_index + 1
+        end
+
+        -- Find the index of the first non-space character from the end
+        while end_index > 0 and str:sub(end_index, end_index) == " " do
+            end_index = end_index - 1
+        end
+
+        -- Return the trimmed substring
+        return str:sub(start_index, end_index)
+    end
+
+    -- Function to decode URL-encoded characters in a string
+    function url_decode(input_string)
+        local output_string = input_string:gsub("%%(%x%x)", function(hex)
+            return string.char(tonumber(hex, 16))
+        end)
+        return output_string
+    end
+
+    -- Function to split a string by dashes and return a table
+    function split_string_by_dashes(input_string)
+        local split_table = {}
+        local track_info = {}
+
+        for value in input_string:gmatch("[^%-]+") do
+            table.insert(split_table, trim_string(value))
+        end
+    
+        track_info["track"] = split_table[1]
+        track_info["artist"] = split_table[2]
+        track_info["name"] = split_table[3]
+    
+        return track_info
+    end
+
+    -- Function to insert a URL into the library table
+    function insert_into_library(url)
+        -- Remove query parameters from the URL
+        local url_without_params = url:gsub("%?.*", "")
+
+        -- Extract the file name from the URL
+        local file_name = url_without_params:match("/([^/]+)$")
+        local file_name = file_name:gsub(".ogg", "")
+        local file_name = url_decode(file_name)
+    
+        local new_entry = split_string_by_dashes(file_name)
+        new_entry["url"] = url
+        library[#library + 1] = new_entry
+        return new_entry
+    end
+
+    -- Iterate over the URLs and insert them into the library
+    for idx, value in ipairs(urls) do
+        insert_into_library(value)
+    end
+
+    -- Print the library table (for testing purposes)
+    if DEBUG then printTable(library) end
+    
+    -- Function to calculate the Levenshtein distance between two strings
+    local function levenshteinDistance(str1, str2)
+        local len1, len2 = #str1, #str2
+        local matrix = {}
+    
+        for i = 0, len1 do
+            matrix[i] = {}
+            matrix[i][0] = i
+        end
+
+        for j = 0, len2 do
+            matrix[0][j] = j
+        end
+
+        for i = 1, len1 do
+            for j = 1, len2 do
+                local cost = (str1:sub(i, i) ~= str2:sub(j, j) and 1 or 0)
+                matrix[i][j] = math.min(
+                    matrix[i - 1][j] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j - 1] + cost
+                )
+            end
+        end
+
+        return matrix[len1][len2]
+    end
+    
+    -- Function to search for a song by name (fuzzy search)
+    local function searchSongByName(songName)
+        local minDistance = math.huge
+        local foundSong = nil
+
+        for _, song in ipairs(library) do
+            if DEBUG then print("Checking song: " .. song.name:lower()) end
+            local distance = levenshteinDistance(song.name:lower(), songName:lower())
+            if DEBUG then print("Distance: " .. distance) end
+            if distance < minDistance then
+                if DEBUG then print("Distance is less than minDistance... new found song is " .. song.name) end
+                minDistance = distance
+                foundSong = song
+            end
+        end
+
+        -- Adjust the threshold as desired
+        --local threshold = 100
+        --if minDistance <= threshold then
+        --    return foundSong
+        --else
+        --    return nil  -- Song not found
+        --end
+        print("Song found... " .. foundSong.name)
+        return foundSong -- Just return the best match, no threshold.
+    end
+    
+    -- Function to load and play a song
+    local function loadSong(songURL)
+        local audioSource
+        local foundSong = searchSongByName(songURL)
+        
+        if foundSong ~= nil then
+            audioSource = foundSong.url
+            currentName = foundSong.name
+            currentArtist = foundSong.artist
+        else
+            audioSource = songURL
+            currentName = "Unknown"
+            currentArtist = "Unknown"
+        end
+        
+        -- Correct for default Dropbox share links
+        if DEBUG then print("Original source: " .. audioSource) end
+        audioSource = audioSource:gsub("?dl=0", "?dl=1")
+        audioSource = audioSource:gsub("https://www.dropbox.com/s/", "https://dl.dropboxusercontent.com/s/")
+        if DEBUG then print("Fixed source: " .. audioSource) end
+        
+        -- Load the song using the audio library (bass)
+        bass.loadURL(audioSource, "3d noblock noplay", function(bassObj)
+            if snd and snd:isValid() then snd:stop() end -- Something is already playing, destroy it before continuing.
+            snd = bassObj
+            if ONOWNER then
+                snd:setPos(owner():getPos())
+            else
+                snd:setPos(chip():getPos())
+            end
+            snd:setVolume(volume)
+            snd:setLooping(false)
+            snd:setFade(FADE_START, FADE_END)
+            snd:play()
+        end)
+    end
+    
+    -- Receive the network message to play a song
+    net.receive("playSong", function(len)
+        local url = net.readString()
+        loadSong(url)
+    end)
+    
+    -- Receive the network message to set the volume
+    net.receive("setVolume", function(len)
+        local vol = net.readInt(5)
+        volume = vol
+        
+        -- Update the volume of the currently playing song
+        if snd ~= nil and snd:isValid() then
+            snd:setVolume(vol)
+        end
+            
+        print("Volume has been set to " .. tostring(vol))
+    end)
+    
+    -- Receive the network message to pause the song
+    net.receive("pause", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:pause()
+    end)
+    
+    -- Receive the network message to play the song
+    net.receive("play", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:play()
+    end)
+    
+    -- Receive the network message to stop the song
+    net.receive("stop", function(len)
+        if snd == nil or not snd:isValid() then
+            print("Nothing is playing!")
+            return
+        end
+        
+        snd:stop()
+    end)
+    
+    net.receive("library", function(len)
+        for _, song in ipairs(library) do
+            local track_name = song.name
+            local track_artist = song.artist
+            
+            print(track_name .. " by " .. track_artist)
+        end
+    end)
+    
+    -- Perform actions during the Think hook
+    hook.add("Think", "sndCutoff", function()
+        if snd == nil or not snd:isValid() then
+            return
+        end
+        
+        -- Adjust the volume based on the distance between the player and the owner
+        if ONOWNER then
+            if player():getPos():getDistance(owner():getPos()) > PLAYDIST then
+                snd:setVolume(0)
+            else
+                snd:setVolume(volume)
+            end
+        else
+            if player():getPos():getDistance(chip():getPos()) > PLAYDIST then
+                snd:setVolume(0)
+            else
+                snd:setVolume(volume)
+            end
+        end
+        
+    end)
+    
+    -- Perform actions during the Think hook
+    hook.add("Think", "sndPos", function()
+        if snd == nil or not snd:isValid() then
+            return
+        end
+        
+        -- Update the position of the song based on the player's position
+        snd:setPos(player():getPos())
+    end)
+    
+    hook.add("Think", "calculateFFT", function()
+        if snd == nil or not snd:isValid() then
+            return
+        end
+        
+        -- Define a local function for smoothing the FFT values with attack and decay factors
+        local function fft_smoothing(fft_previous, fft_new, attack_factor, decay_factor)
+            local decayed_values = {}
+            -- Iterate over each frequency bin of the FFT values
+            for i, value in ipairs(fft_new) do
+                if value > fft_previous[i] then
+                    -- Apply attack factor to smoothly increase the value
+                    local decayed_value = fft_previous[i] + ((value - fft_previous[i]) * attack_factor)
+                    table.insert(decayed_values, decayed_value)
+                else
+                    -- Apply decay factor to gradually decrease the value
+                    local decayed_value = fft_previous[i] * decay_factor
+                    table.insert(decayed_values, decayed_value)
+                end
+            end
+            
+            return decayed_values  -- Return the smoothed FFT values
+        end
+        
+        -- Check if the previous FFT values table is empty
+        if next(fft_previous) == nil then
+            -- If empty, initialize fft_smooth with current FFT values
+            fft_smooth = snd:getFFT(3)
+        end
+        fft_previous = fft_smooth
+        fft_new=snd:getFFT(3)
+        
+        fft_smooth = fft_smoothing(fft_previous, fft_new, ATTACK_FACTOR, DECAY_FACTOR)
+        
+    end)
+    
+    local function quotaCheck(n)
+        return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+    end
+    
+    local function ramCheck(n)
+        return math.max(ramAverage(), ramUsed()) < ramMax()*n
+    end
+    
+    hook.add("render","",function()
+        if quotaCheck(0.5) && ramCheck(0.5) then
+            
+            if player() == owner() then
+                net.start("FFTPacket")
+                net.writeTable({fft_smooth[1], fft_smooth[2], fft_smooth[3], fft_smooth[4], fft_smooth[5]})
+                net.send(nil, true)
+            end
+            
+            render.setColor(Color(0,1,(fft_smooth[1] or 0)*1):hsvToRGB()) 
+            render.draw3DBox(Vector(0,512,0),Angle(),Vector(),Vector(512*2))
+                
+            render.setColor(Color(0,1,(fft_smooth[2] or 0)*1):hsvToRGB()) 
+            render.draw3DBox(Vector(512,512,0),Angle(0,0,90),Vector(),Vector(512))
+            render.draw3DBox(Vector(-512,512,0),Angle(0,0,90),Vector(),Vector(512))
+                        
+            render.setColor(Color(0,1,(fft_smooth[3] or 0)*1):hsvToRGB()) 
+            render.draw3DBox(Vector(0,0,0),Angle(0,0,90),Vector(),Vector(512))  
+                
+            render.setColor(Color(0,1,(fft_smooth[5] or 0)*1):hsvToRGB()) 
+            render.draw3DBox(Vector(0,512,512),Angle(0,0,90),Vector(),Vector(512))
+                
+            for i=0,50,1 do
+                render.setColor(Color(i*4,1,1):hsvToRGB())
+                render.draw3DBox(Vector(0+i*10,512,250),Angle(),Vector(),Vector(10,-50-(fft_smooth[i+1] or 0)*512,10)) -- default 350
+            end
+            render.setFont("Trebuchet24")
+            render.drawText(4, 0, "Currently playing:\n"..currentName.."\n"..currentArtist)
+        end
+    end)
+end

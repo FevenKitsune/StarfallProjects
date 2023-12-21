@@ -1,0 +1,104 @@
+--@name
+--@author
+--@client
+
+local particle_count = 500
+local particles = {
+    x={},
+    y={},
+    sx={},
+    sy={},
+    dir={},
+    speed={}
+}
+local flipflop = true
+
+print(flipflop)
+flipflop = not(flipflop)
+
+print(flipflop)
+flipflop = not(flipflop)
+print(flipflop)
+
+function thinkAll()
+    local rx, ry = render.getResolution()
+    local idxs
+    
+    if (flipflop) then idxs = 1
+    else idxs = 2 end
+    flipflop = not(flipflop)
+    
+    for idx=idxs,#particles.x,2 do
+        if (particles.dir[idx] == 0) then
+            particles.x[idx] = particles.x[idx] - particles.speed[idx]
+            particles.y[idx] = particles.y[idx] - particles.speed[idx]
+        elseif (particles.dir[idx] == 1) then
+            particles.x[idx] = particles.x[idx] + particles.speed[idx]
+            particles.y[idx] = particles.y[idx] - particles.speed[idx]
+        elseif (particles.dir[idx] == 2) then
+            particles.x[idx] = particles.x[idx] + particles.speed[idx]
+            particles.y[idx] = particles.y[idx] + particles.speed[idx]
+        elseif (particles.dir[idx] == 3) then
+            particles.x[idx] = particles.x[idx] - particles.speed[idx]
+            particles.y[idx] = particles.y[idx] + particles.speed[idx]
+        end
+    
+        -- left bounce
+        -- NOTE: rectangle is drawn from top left corner
+        if (particles.x[idx] < 0) then
+            if (particles.dir[idx] == 0) then particles.dir[idx] = 1
+            elseif (particles.dir[idx] == 3) then particles.dir[idx] = 2
+            end
+        elseif (particles.x[idx] + particles.sx[idx] > rx) then -- right bounce
+            if (particles.dir[idx] == 1) then particles.dir[idx] = 0
+            elseif (particles.dir[idx] == 2) then particles.dir[idx] = 3
+            end
+        end
+    
+        -- top bounce
+        if (particles.y[idx] < 0) then
+            if (particles.dir[idx] == 0) then particles.dir[idx] = 3
+            elseif (particles.dir[idx] == 1) then particles.dir[idx] = 2
+            end
+        elseif (particles.y[idx] + particles.sy[idx] > ry) then -- bottom bounce
+            if (particles.dir[idx] == 2) then particles.dir[idx] = 1
+            elseif (particles.dir[idx] == 3) then particles.dir[idx] = 0
+            end
+        end    
+    end
+end
+
+function drawAll()
+    for idx=1,#particles.x,1 do
+        render.drawRect(
+            particles.x[idx], 
+            particles.y[idx],
+            particles.sx[idx],
+            particles.sy[idx]
+        )
+    end
+end
+
+function addParticle(x, y, sx, sy, dir, speed)
+    table.insert(particles.x, x)
+    table.insert(particles.y, y)
+    table.insert(particles.sx, sx)
+    table.insert(particles.sy, sy)
+    table.insert(particles.dir, dir)
+    table.insert(particles.speed, speed)
+end
+
+render.createRenderTarget("Background")
+
+local rx, ry = render.getResolution()
+for ct=1,2800,1 do
+    addParticle(math.random(rx), math.random(ry), 2, 2, ct%4, 1)
+end
+
+-- Render hook
+hook.add("render", "", function()
+    drawAll()
+end)
+hook.add("tick", "", function()
+    thinkAll()
+end)

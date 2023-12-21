@@ -1,0 +1,11 @@
+--@name
+--@author
+--@owneronly
+
+
+local rate = 0.3
+
+timer.create("dance", rate, 0, function()
+    concmd("+duck")
+        timer.simple(rate/2, function() concmd("-duck") end)
+        end)

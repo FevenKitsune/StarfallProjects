@@ -1,0 +1,91 @@
+--@name Computer
+--@author Feven Kitsune
+--@client
+
+local IdleBounce = class("IdleBounce")
+
+function IdleBounce:initialize(x, y, dir, clr, speed, sx, sy)
+    --[[
+    directions:
+      0 1
+       X
+      3 2
+    ]]--
+    
+    self.x = x or 0
+    self.y = y or 0
+    self.dir = dir or 0
+    self.speed = speed or 2
+    self.sx = sx or 8
+    self.sy = sy or 8
+    self.color = clr or Color(255, 255, 255)
+end
+
+function IdleBounce:think()
+    
+    
+    self:draw()
+    
+    if (self.dir == -1) then
+        -- do nothing
+    elseif (self.dir == 0) then
+        self.x = self.x - self.speed
+        self.y = self.y - self.speed
+    elseif (self.dir == 1) then
+        self.x = self.x + self.speed
+        self.y = self.y - self.speed
+    elseif (self.dir == 2) then
+        self.x = self.x + self.speed
+        self.y = self.y + self.speed
+    elseif (self.dir == 3) then
+        self.x = self.x - self.speed
+        self.y = self.y + self.speed
+    else
+        error("Invalid dir state!")
+    end
+    
+    -- left bounce
+    -- NOTE: rectangle is drawn from top left corner
+    if (self.x < 0) then
+        if (self.dir == 0) then self.dir = 1
+        elseif (self.dir == 3) then self.dir = 2
+        end
+    end
+    
+    -- top bounce
+    if (self.y < 0) then
+        if (self.dir == 0) then self.dir = 3
+        elseif (self.dir == 1) then self.dir = 2
+        end
+    end
+    
+    -- right bounce
+    if (self.x + self.sx > rx) then
+        if (self.dir == 1) then self.dir = 0
+        elseif (self.dir == 2) then self.dir = 3
+        end
+    end
+    
+    -- bottom bounce
+    if (self.y + self.sy > ry) then
+        if (self.dir == 2) then self.dir = 1
+        elseif (self.dir == 3) then self.dir = 0
+        end
+    end
+end
+
+function IdleBounce:draw()
+    
+end
+
+render.createRenderTarget("Background")
+
+-- Render hook
+hook.add("render", "", function ()
+    local rx, ry = render.getResolution()
+    render.setColor(self.color)
+    render.drawRect(self.x, self.y, self.sx, self.sy)
+    render.setColor(Color(0,0,0))
+    render.drawFilledCircle(self.x + 30, self.y + 25, 20)
+    render.drawFilledCircle((self.x + self.sx) - 30, self.y + 25, 20)
+end)

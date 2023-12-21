@@ -1,0 +1,42 @@
+--@name FollowerSF
+--@author Feven Kitsune
+--@server
+
+local chip = chip()
+local hoverHeight = 100 -- How far above the user should the chip follow. Default: 100
+local hoverDistance = 0 -- How far behind the user should the chip follow. Default: -20
+
+local owner = owner()
+
+local physMove = false
+
+
+chip:setFrozen(true)
+chip:setNocollideAll(true)
+
+hook.add("PlayerSay", "Hey", function(ply, txt)
+    if (ply ~= owner) then
+        -- Ignore commands from invalid users
+        return
+    end
+    
+    if txt:sub(1, 6)=="!pause" then
+        -- pause command, freezes chip in air and prevents further movement.
+        physMove = false
+        return ""
+    elseif txt:sub(1,7)=="!follow" then
+        -- restores movement functionality.
+        physMove = true
+        print(owner:getPos()[3])
+        return ""
+    end
+end)
+
+    
+hook.add("Tick", "Update", function()
+    local targetPosition = Vector(hoverDistance, 0, hoverHeight)
+    if (physMove == true) then
+        -- if movement has been enabled, move towards target position.
+        chip:setPos(chip:localToWorld(chip:worldToLocal(owner:localToWorld(targetPosition)) * 0.1))
+    end
+end)

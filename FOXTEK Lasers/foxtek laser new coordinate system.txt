@@ -1,0 +1,46 @@
+--@name FOXTEK Laser Green Yellow Figure 8 (New Coordinate System) (Doesn't work well)
+--@author FOXTEK (FevenKitsune)
+--@client
+--@include laserlib.txt
+
+local LaserLib = require("laserlib.txt")
+
+local LaserManager = class("LaserManager")
+function LaserManager:initialize(R, Theta, Phi, Color)
+    self.Laser = LaserLib:new(Color)
+    self.R = R
+    self.dir = Vector()
+end
+
+function LaserManager:think(parent)
+    local startpos = parent:getPos()
+    local endpos = parent:localToWorldVector(self.dir * self.R)
+    self.Laser:thinkpos(startpos, endpos)
+end
+
+local fp = false
+local n = 12
+local R = 1000
+local SPEED = 4
+local SPREAD = 0.01
+
+local Lasers = {}
+for i = 1, n do
+    Lasers[i] = LaserManager:new(R, 0, 0, Color( i * (255 / n), 255, 0))
+end
+
+hook.add("tick", "update_laser", function()
+    --fp = not fp -- HALF RATE UPDATES
+    --if fp then return end
+    
+    local rt = timer.realtime
+    local sin = math.sin
+    local cos = math.cos
+    
+    for k = 1, #Lasers do
+        local v = Lasers[k]
+        v.dir[1] = sin( ( (rt() * SPEED) + ((1 / n) * k) ) * 1 ) * SPREAD
+        v.dir[3] = sin ( ( (rt() * SPEED) + ((1 / n) * k) ) * 2 ) * SPREAD
+        v:think(chip())
+    end
+end)

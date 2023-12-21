@@ -1,0 +1,56 @@
+--@name FoxTech 7-segment Driver v1.2
+--@author FoxTech (Feven)
+--@server
+
+--[[
+ __A__
+|     |
+F     B
+|__G__|
+|     |
+E     C
+|__D__|  (DP)
+
+BYTE FORMAT:
+0b pabcdefg
+]]
+
+wire.adjustPorts(
+    {Value="number"}, -- Inputs
+    {DP="number", A="number", B="number", C="number", D="number", E="number", F="number", G="number"} -- Outputs
+)
+
+local tblNumbers = {--DP A  B  C  D  E  F  G
+    function() return 0, 1, 1, 1, 1, 1, 1, 0 end, -- 0
+    function() return 0, 0, 1, 1, 0, 0, 0, 0 end, -- 1
+    function() return 0, 1, 1, 0, 1, 1, 0, 1 end, -- 2
+    function() return 0, 1, 1, 1, 1, 0, 0, 1 end, -- 3
+    function() return 0, 0, 1, 1, 0, 0, 1, 1 end, -- 4
+    function() return 0, 1, 0, 1, 1, 0, 1, 1 end, -- 5
+    function() return 0, 1, 0, 1, 1, 1, 1, 1 end, -- 6
+    function() return 0, 1, 1, 1, 0, 0, 0, 0 end, -- 7
+    function() return 0, 1, 1, 1, 1, 1, 1, 1 end, -- 8
+    function() return 0, 1, 1, 1, 1, 0, 1, 1 end, -- 9
+}
+local a, b, c = tblNumbers[1]()
+
+local function distributePorts(DP, A, B, C, D, E, F, G)
+    wire.ports.DP = DP
+    wire.ports.A = A
+    wire.ports.B = B
+    wire.ports.C = C
+    wire.ports.D = D
+    wire.ports.E = E
+    wire.ports.F = F
+    wire.ports.G = G
+end
+
+local function update7Seg(value)
+    distributePorts(tblNumbers[value+1]())
+end
+
+hook.add("Input", "UpdateInterrupt", function(name, value)
+    if name == "Value" then
+        update7Seg(math.clamp(math.round(value), 0, 9))
+    end
+end)

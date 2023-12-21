@@ -1,0 +1,44 @@
+--@name Surveillance Visor
+--@author Feven Kitsune
+--@client
+
+local invisible_entities = {}
+
+if player() ~= owner() then
+    return
+end
+
+enableHud(nil, true)
+
+local i, v
+hook.add("postdrawopaquerenderables", "", function(depth, skybox)
+    for k, v in pairs(invisible_entities) do
+        if v ~= nil and v:isValid() then
+            local modelBoundsA, modelBoundsB = v:getModelBounds()
+            render.setColor(Color(255, 0, 0, 255))
+            render.draw3DWireframeBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB)
+            render.setColor(Color(255, 0, 0, 15))
+            render.draw3DBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB)
+        end
+    end
+end)
+
+timer.create("updateEntityList", 1, 0, function()
+    local function visibility_filter(ent)
+        local color = ent:getColor()
+        local owner = ent:getOwner()
+        if owner == nil then
+            return nil
+        end
+        
+        -- if ent:isValid() and owner:getName() == "boodahtheloota" then
+        --if ent:isValid() and color[4] < 25 then
+        --if ent:isValid() and color[4] < 25 then
+        if ent:isValid() and (ent:getClass() == "starfall_processor" or ent:getClass() == "gmod_wire_expression2") then
+            return ent
+        else
+            return nil
+        end
+    end
+    invisible_entities = find.all(visibility_filter)
+end)

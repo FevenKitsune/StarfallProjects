@@ -1,0 +1,261 @@
+--@name GunChair Mk7.1
+--@author FevenKitsune
+--@server
+
+-- Initialize local entity variables
+local GUN1
+local GUN2
+local GUN3
+local chair
+local ANGLE
+
+-- Entity initialization. If entity is valid, assign it to a local variable.
+local function init(name, ent)
+    if (name == "GUN1") then
+        print("GUN1 Detected! Name: " .. name)
+        GUN1 = ent
+    elseif (name == "GUN2") then
+        print("GUN2 Detected! Name: " .. name)
+        GUN2 = ent
+    elseif (name == "GUN3") then
+        print("GUN3 Detected! Name: " .. name)
+        GUN3 = ent
+    elseif(name == "CHAIR") then
+        print("CHAIR Detected! Name: " .. name)
+        chair = ent
+    end
+    print(ent)
+end
+
+-- Wireport control setup.
+wire.adjustOutputs({"Fire"}, {"number"})
+wire.adjustPorts{["GUN1"]="entity", ["GUN2"]="entity", ["GUN3"]="entity", ["CHAIR"]="entity", ["ANGLE"]="angle"}
+
+-- Verify entity connection is valid then initialize to init function to assign to local variables.
+hook.add("Input", "HandleEntityInput", function(name, value)
+    if (name == "ANGLE") then
+        angle=value
+        return
+    end
+    if value:isValid() then
+        -- When I'm sure everything is OK with the provided entity, I can call my initialization function
+        init(name, value)
+    end
+end)
+
+-- Initialize driver variable. Is set to the active pilot.
+local driver
+-- Due to the fact that `PlayerEnteredVehicle` has a `role` parameter, but `PlayerLeaveVehicle` doesn't we can easily distinguish between the 2 hooks.
+-- If a `role` argument is present, set the `driver` variable to the provided player, otherwise set it to `role` (which will be `nil`)
+local function set_driver(ply, vehicle, role)
+    if vehicle ~= chair then
+        return
+    end -- If the vehicle in question isn't our chair, exit without doing anything
+    driver = role and ply -- If role is "Truthy" (any number value is, even `0`) then store `ply` in our `driver` variable
+end
+
+-- Attach the `set_driver` function to the appropriate hooks
+hook.add("PlayerEnteredVehicle", "SetDriver", set_driver)
+hook.add("PlayerLeaveVehicle", "SetDriver", set_driver)
+
+
+-- Variables responsible for the movement of the chair
+local velocityY = 0
+local accelerationY = 0
+local velocityX = 0
+local accelerationX = 0
+local velocityZ = 0
+local accelerationZ = 0
+
+-- Map of inputs and their acceleration values / forces
+local speed = 1
+
+local inputsY = {
+    [IN_KEY.FORWARD] = speed,
+    [IN_KEY.BACK] = -speed
+}
+
+local inputsX = {
+    [IN_KEY.MOVELEFT] = -speed,
+    [IN_KEY.MOVERIGHT] = speed
+}
+
+local inputsZ = {
+    [IN_KEY.SPEED] = -speed,
+    [IN_KEY.JUMP] = speed
+}
+
+local inputsFire = {
+    [IN_KEY.ATTACK2] = 1
+}
+
+-- Attach a callback to the `KeyPress` hook so we can detect when players press their binds
+hook.add("KeyPress", "KeyPress", function(ply, key)
+    if ply ~= driver then
+        return
+    end -- If the player isn't our driver then we don't care
+    
+    if inputsY[key] then -- If the key is present in our input map...
+        accelerationY = inputsY[key] -- then set acceleration to that value
+       end
+    
+    if inputsX[key] then
+        accelerationX = inputsX[key]
+    end
+    
+    if inputsZ[key] then
+        accelerationZ = inputsZ[key]
+    end
+    
+    if inputsFire[key] then
+        wire.ports.Fire = inputsFire[key]
+    end
+end)
+
+-- Attach a callback to the `KeyRelease` hook so we can detect when players release their binds
+hook.add("KeyRelease", "KeyRelease", function(ply, key)
+    if ply ~= driver then
+        return
+    end -- If the player isn't our driver then we don't care 
+    
+    if inputsY[key] then -- Check if the key is one of allowed ones from the input map
+        -- Without this snippet, when player decides to press W and S at once, then release only one of them, the hologram will stop
+        -- This will simply check whether any other keys from our input map are pressed, if so, set the `acceleration` to the first found one:
+        for input_key, force in pairs(inputsY) do
+            if ply:keyDown(input_key) then
+                accelerationY = force
+                return -- Return from the whole function so that `acceleration = 0` doesn't get executed
+            end
+        end
+        
+        accelerationY = 0
+    end
+    
+        
+    if inputsX[key] then -- Check if the key is one of allowed ones from the input map
+        -- Without this snippet, when player decides to press W and S at once, then release only one of them, the hologram will stop
+        -- This will simply check whether any other keys from our input map are pressed, if so, set the `acceleration` to the first found one:
+        for input_key, force in pairs(inputsX) do
+            if ply:keyDown(input_key) then
+                accelerationX = force
+                return -- Return from the whole function so that `acceleration = 0` doesn't get executed
+            end
+        end
+        
+        accelerationX = 0 
+    end
+        
+    
+    if inputsZ[key] then -- Check if the key is one of allowed ones from the input map
+        -- Without this snippet, when player decides to press W and S at once, then release only one of them, the hologram will stop
+        -- This will simply check whether any other keys from our input map are pressed, if so, set the `acceleration` to the first found one:
+        for input_key, force in pairs(inputsZ) do
+            if ply:keyDown(input_key) then
+                accelerationZ = force
+                return -- Return from the whole function so that `acceleration = 0` doesn't get executed
+            end
+        end
+        
+        accelerationZ = 0
+    end
+    
+    if inputsFire[key] then
+        -- Stop firing        
+        wire.ports.Fire = 0
+    end
+end)
+
+local buffer = 0
+
+-- These are made outside of tick to preserve previously valid eye angles in case of a dangerous eye angle
+local g1Vec = Angle(0,0,0)
+local g2Vec = Angle(0,0,0)
+local g3Vec = Angle(0,0,0)
+-- Attach a callback responsible for the movement of the chair to the `Tick` event
+hook.add("Tick", "Update", function()
+    if (driver == nil) then
+        return
+    end
+    
+    local eyeTrace = driver:getEyeTrace()
+    local eyeTraceHitpos = eyeTrace["EndPos"]
+    local eyeAngles = wire.ports.ANGLE
+    local eyePos = driver:getEyePos()
+    local chairPos = chair:getPos()
+    local chairAngles = chair:getAngles()
+    
+    -- Safety checks
+    --local g1Trace = trace.trace(GUN1:getPos(), eyeTrace["HitPos"], GUN1)
+    --local g2Trace = trace.trace(GUN2:getPos(), eyeTrace["HitPos"], GUN2)
+    --local g3Trace = trace.trace(GUN3:getPos(), eyeTrace["HitPos"], GUN3)
+    
+    -- Gun1 Vector
+    -- print("Gun1Pos:"..tostring(GUN1:getPos():getAngle()))
+    -- print("EndPosAng:"..tostring(eyeTrace["HitPos"]:getAngle()))
+    
+    --local g2Vec = GUN3:getPos():getAngleEx(eyeTrace["HitPos"])
+    --local g3Vec = GUN3:getPos():getAngleEx(eyeTrace["HitPos"])
+    
+    
+    --[[if (eyeTrace["Entity"] ~= driver) and (eyeTrace["Entity"] ~= chair) then
+        if (g1Trace["Entity"] ~= driver) and (g1Trace["Entity"] ~= chair) then
+            g1Vec = (eyeTrace["HitPos"] - GUN1:getPos()):getAngle()
+        else
+            print("Gun 1 Dangerous Target")
+        end
+        
+        if (g2Trace["Entity"] ~= driver) and (g2Trace["Entity"] ~= chair) then
+            g2Vec = (eyeTrace["HitPos"] - GUN2:getPos()):getAngle()
+        else
+            print("Gun 2 Dangerous Target")
+        end
+        
+        if (g3Trace["Entity"] ~= driver) and (g3Trace["Entity"] ~= chair) then
+            g3Vec = (eyeTrace["HitPos"] - GUN3:getPos()):getAngle()
+        else
+            print("Gun 3 Dangerous Target")
+        end
+    end--]]
+    
+    
+    --[[buffer = buffer + 1
+    if (buffer > 4) then
+        -- debug statements
+        print(eyeTrace["Hit"])
+        print("HITPOS:" .. tostring(g1Trace["Entity"]))
+        print("DriverHitbox:"..tostring(driver:getHitBoxSet()))
+        -- print("HITNONWORLD:" .. tostring(eyeTrace["HitNonWorld"]))
+        -- print("HITSKY:" .. tostring(eyeTrace["HitSky"]))
+        -- print("g1Vec" .. tostring(GUN1:worldToLocalAngles(g1Vec)))
+        buffer = 0
+    end]]--
+    
+    
+    
+    -- Add acceleration from user input to the velocity
+    velocityY = velocityY + accelerationY
+    velocityX = velocityX + accelerationX
+    velocityZ = velocityZ + accelerationZ
+
+    local relativeEyeAngles = (eyeAngles:rotateAroundAxis(Vector(0,0,1),-90) * Angle(-1,1,1))
+    local transformedEyeAngles = Angle(relativeEyeAngles[3], relativeEyeAngles[2], relativeEyeAngles[1])
+    
+    if (transformedEyeAngles[2] < -9.0) then
+        transformedEyeAngles[2] = transformedEyeAngles[2] + 13.5 + 4.5
+    end
+    
+    --GUN1:setAngles(g1Vec)
+    --GUN2:setAngles(g2Vec)
+    --GUN3:setAngles(g3Vec)
+    
+    chair:setPos(chairPos + chair:localToWorldVector(Vector(velocityX, velocityY, velocityZ)))
+    chair:setAngles(transformedEyeAngles)
+    
+    --[[ Decrease the velocity, otherwise chair will never stop
+    This also limits our top speed suchthat when our acceleration reaches 10% of our current speed,
+    the velocity increase by acceleration is cancelled out by the decay of our velocity.
+    ]]--
+    velocityY = velocityY * 0.9
+    velocityX = velocityX * 0.9
+    velocityZ = velocityZ * 0.9
+end)

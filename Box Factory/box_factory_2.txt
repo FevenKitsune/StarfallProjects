@@ -1,0 +1,133 @@
+--@name Box Factory 2
+--@author Feven (Forked from {Toby})
+--@shared
+
+local mdist = 0.3
+
+-- Check if the code is running on the server.
+if SERVER then
+    chip():setAngles(Angle())
+    -- Receive data from the client using the "dataTransfer" network message.
+    net.receive("dataTransfer", function()
+        local mtab = net.readTable()
+        local vtab = net.readTable()
+        local midpoint = net.readVector()
+        local err, newbox = pcall(prop.createCustom, midpoint, Angle(0, 0, 0), { mtab }, true)
+        if not err then 
+            print("Invalid box")
+            printTable(newbox)
+            return
+        end
+        newbox:setMaterial("debug/env_cubemap_model")
+        net.start("generateMesh")
+        net.writeTable(vtab)
+        net.writeEntity(newbox)
+        --printTable(mtab)
+        --printTable(vtab)
+        net.send()
+    end)
+else
+    net.receive("generateMesh", function()
+        local vtab = net.readTable()
+        local e = net.readEntity(function(re)
+            --local meshd = mesh.createFromTable(vtab, nil)
+            -- generate uv with writeUV
+            local meshd = mesh.generate(vtab, nil)
+            mesh.generate(meshd, MATERIAL.POLYGON, 
+            re:setMesh(meshd)
+            re:setMaterial("hunter/myplastic")
+        end)
+        
+    end)
+    
+    if player() != owner() then return end
+    
+    local function isValidCube(points)
+        local distances = {}
+        for i = 1, #points do
+            for j = i + 1, #points do
+                local dist = points[i]:getDistanceSqr(points[j])
+                table.insert(distances, dist)
+            end
+        end
+        
+        return distances
+    end
+    
+    -- Check if the code is running on the client and if the player is the owner of the chip.
+    local HasPressed = false
+    local Colorrr = Color(255,0,0,255)
+    local Pos1 = Vector(0,0,0)
+    local Pos2 = Vector(0,0,0)
+    local Midpoint = Vector(0,0,0)
+    local Data = {}
+    -- Create a hook that runs on every tick.
+    hook.add('tick','',function()
+        -- Check if the player is pressing the attack key and has not pressed it before, and if they have no active weapon.
+        if player():keyDown(IN_KEY.ATTACK) and HasPressed == false and player():getActiveWeapon():getClass() == "none" then
+            -- Store the first position when the attack key is pressed.
+            Pos1 = player():getEyeTrace().HitPos
+            HasPressed = true
+        end
+        
+        -- Check if the player is pressing the attack key and has pressed it before, and if they have no active weapon.
+        if player():keyDown(IN_KEY.ATTACK) and HasPressed == true and player():getActiveWeapon():getClass() == "none" then
+            -- Store the second position when the attack key is still pressed.
+            Pos2 = player():getEyeTrace().HitPos
+        end
+        
+        -- Check if the player has released the attack key after pressing it.
+        if not player():keyDown(IN_KEY.ATTACK) and HasPressed == true then
+            HasPressed = false
+            
+            -- Add the positions to the Data table and send it to the server.
+            Midpoint = (Pos1 + Pos2) / 2
+            local points = {
+                worldToLocal(Pos1, Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Pos2, Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos1[1], Pos2[2], Pos2[3]), Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos2[1], Pos1[2], Pos2[3]), Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos1[1], Pos1[2], Pos2[3]), Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos1[1], Pos2[2], Pos1[3]), Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos2[1], Pos1[2], Pos1[3]), Angle(0,0,0), Midpoint, Angle(0,0,0)),
+                worldToLocal(Vector(Pos2[1], Pos2[2], Pos1[3]), Angle(0,0,0), Midpoint, Angle(0,0,0))
+            }
+            
+            local distances = isValidCube(points)
+            local edge_length = math.min(unpack(distances))
+            if edge_length <= 0.0400000012 then
+                print("Invalid cube!")
+                return
+            end
+            print(edge_length)
+            local mtab, vtab = mesh.findConvexHull(points, nil)
+            net.start("dataTransfer")
+            net.writeTable(vtab)
+            net.writeTable(mtab)
+            net.writeVector(Midpoint)
+            net.send()
+            Pos1 = Vector(0,0,0)
+            Pos2 = Vector(0,0,0)
+            Midpoint = Vector(0,0,0)
+        end
+    end)
+    
+    -- Enable HUD (Heads-Up Display) for the player.
+    enableHud(player(),true)
+    
+    -- Create a hook that runs after drawing opaque renderables.
+    hook.add('postdrawopaquerenderables','',function()
+        local Ang = Angle(0,0,0)
+        Midpoint = (Pos1 + Pos2) / 2
+        Pos1R = worldToLocal(Pos1, Ang, Midpoint, Ang)
+        Pos2R = worldToLocal(Pos2, Ang, Midpoint, Ang)
+        
+        -- Draw wireframe and solid boxes for selected positions and data.
+        render.setColor(Colorrr:setA(255))
+        render.draw3DWireframeBox(Midpoint,Ang,Pos1R,Pos2R)
+        render.draw3DWireframeBox(Midpoint,Ang,Pos2R,Pos1R)
+        render.setColor(Colorrr:setA(5))
+        render.draw3DBox(Midpoint,Ang,Pos1R,Pos2R)
+        render.draw3DBox(Midpoint,Ang,Pos2R,Pos1R)
+    end)
+end

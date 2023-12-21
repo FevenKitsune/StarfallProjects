@@ -1,0 +1,36 @@
+--@name FOXTEK SuperCircle Lasers
+--@author FOXTEK (Feven Kitsune)
+--@server
+
+local function createLaser()
+    local xSize = 0.15
+    local ySize = 0.15
+    local length = 2000
+    local origin = chip():getPos()
+    
+    laser = holograms.create( origin, Angle(), "models/holograms/cylinder.mdl", Vector(xSize, ySize, 1) )
+    local boundingBoxSize = laser:obbSize()[1]
+    laser:setScale( Vector(xSize, ySize, length / boundingBoxSize) )
+    laser:suppressEngineLighting(true)
+    laser:setClip(
+        0, -- clip index
+        true, -- enable clip
+        Vector(), -- clip origin
+        chip():getUp(), -- clip normal
+        laser -- local to holo
+    )
+    return laser
+end
+
+local speed = 100
+local spread = 24
+local n = 50
+local lasers = {}
+for i = 1, n do
+    lasers[i] = createLaser()
+    local coef = (2 * math.pi) / n
+    laser:setAngles( Angle(math.sin(coef*i) * spread, 0, math.cos(coef*i) * spread) )
+    laser:setAngVel( Angle(0, speed, 0) )
+    laser:setColor( Color((360 / n) * i, 1.0, 1.0):hsvToRGB():setA(100) )
+    laser:setParent(chip())
+end

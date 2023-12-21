@@ -1,0 +1,131 @@
+--@name WebsocketShellv2
+--@author FevenKitsune
+--@shared
+--@model models/props_lab/harddrive02.mdl
+
+if SERVER then
+    --> SERVER CODE <--
+    
+    local program_buffer = "" -- Buffer to store outgoing data.
+    
+    -- Forward websocket messages to all clients.
+    net.receive("writeToScreen", function(len)
+        -- Read message and push to all clients
+        msg = net.readString()
+        if net.getBytesLeft() > #msg then
+            net.start("writeToLocalScreen")
+            net.writeString(msg)
+            net.send()
+        end
+    end)
+    
+    -- Chat input hook
+    hook.add("PlayerSay", "CommandProcess", function(ply, text, teamChat)
+        if ply ~= owner() && ply:getName() ~= "DaRkXM0Dzx" && ply:getName() ~= "EmergencyTemporalShift" && ply:getName() ~= "A Normal Twig" then
+            -- This is the single line of code that prevents RCE exploits.
+            return
+        end
+
+        if text == "clr" then
+            net.start("clrLocalScreen")
+            net.send()
+            
+            return ""
+        elseif text:sub(1,1) == ">" then
+            local subtext = text:sub(2)
+            net.start("transmitToWebsocket")
+            net.writeString(subtext)
+            net.send()
+            return ""
+        end
+    end)
+        
+else
+    --> DISTRIBUTED CLIENT CODE <--
+    local string_output_buffer = ""
+    
+    --https://stackoverflow.com/questions/11152220/counting-number-of-string-occurrences
+    function count(base, pattern)
+        return select(2, string.gsub(base, pattern, ""))
+    end
+    
+    -- Screen renderer
+    hook.add("render", "", function ()
+        local font_height
+        local rx, ry = render.getResolution()
+        render.setFilterMin(1)
+        render.setFilterMag(1)
+        render.setFont("DebugFixedSmall")
+        
+        -- Check line count
+        if count(string_output_buffer, "\n") > 35 then
+            -- Find first line and remove it.
+            local pos = string_output_buffer:find("\n",0)
+            string_output_buffer = string_output_buffer:sub(pos+1)
+        end
+        
+        -- Render textbox
+        render.drawText(2, 0, string_output_buffer)
+    end)
+    
+    -- Recieve screen data from server
+    net.receive("writeToLocalScreen", function(len)
+        -- Read message and concatenate to string_output_buffer
+        msg = net.readString()
+        string_output_buffer = string_output_buffer .. msg
+    end)
+    
+    -- Recieve screen clear request
+    net.receive("clrLocalScreen", function(len)
+        string_output_buffer = ""
+    end)
+    
+    --> OWNER CLIENT CODE <--
+    -- Only run on owner's client!
+    if player() ~= owner() then
+        return
+    end
+    
+    
+    local ws = WebSocket("64.99.227.2", 4321, false) -- WebSocket(url, port, encrypted?)
+    
+    -- Socket connect function.
+    function ws:onConnected()
+        hook.add("tick", "heartbeat", function()
+            ws:write("hb")
+        end)
+        print("Socket connected", self:getState())
+    end
+    
+    -- Socket disconnect function. Errored is true if disconnect caused by error.
+    function ws:onDisconnected(errored)
+        print("Socket disconnected", errored, self:getState())
+    end
+    
+    -- Socket message recieve function.
+    function ws:onMessage(msg)
+        if msg == "exit" then
+            -- Close the socket
+            self:close()
+        else
+            if net.getBytesLeft() > #msg then
+                -- if not exit request, forward to server
+                net.start("writeToScreen")
+                net.writeString(msg)
+                net.send()
+            end
+        end
+    end
+    
+    -- Recieve program buffer to transmit to webSocket
+    net.receive("transmitToWebsocket", function(len)
+        -- Read message and write to websocket.
+        msg = net.readString()
+        ws:write(msg)
+    end)
+    
+    
+    
+    -- Connect to the server
+    ws:connect()
+end

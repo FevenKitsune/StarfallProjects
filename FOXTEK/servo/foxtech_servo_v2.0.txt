@@ -1,0 +1,45 @@
+--@name FoxTech Servo v2.0
+--@author FoxTech (Feven)
+--@server
+
+local servo
+
+local function init(name, ent)
+    if (name == "PropE") then
+        print("Entity found!")
+        servo = ent
+    end
+end
+
+wire.adjustPorts(
+    {PropE="entity", Speed="vector", Button="number"}, -- Inputs
+    {AngleVelocityE="vector", DEBUGVEL="vector"} -- Outputs
+)
+
+hook.add("Input", "HandleEntityInput", function(name, value)
+    if name == "PropE" && value:isValid() then
+        -- When I'm sure everything is OK with the provided entity, I can call my initialization function
+        init(name, value)
+    end
+end)
+
+local velocity
+
+hook.add("think", "Move", function()
+    if velocity == nil then
+        velocity = wire.ports.Speed
+        return
+    end
+    local button = wire.ports.Button
+    if (servo != nil && servo:isValid()) then
+        wire.ports.AngleVelocityE=servo:getAngleVelocity()
+        wire.ports.DEBUGVEL=velocity
+
+        if button == 1 then
+            velocity = velocity + ((wire.ports.Speed - servo:getAngleVelocity()) * 0.05)
+            servo:setAngleVelocity(velocity)          
+        else
+            velocity = wire.ports.Speed
+        end
+    end
+end)
