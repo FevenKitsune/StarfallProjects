@@ -15,8 +15,9 @@ hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, t
     if target ~= owner() then return end -- target was not owner, ignore damage
     
     timer.remove("RegenerateShield")
+    timer.remove("ShieldCooldown")
     
-    timer.simple(5, function()
+    timer.create("ShieldCooldown", 5, 1, function()
         timer.create("RegenerateShield", 0.04, 0, function()
             local CurrentArmor = owner():getArmor()
             if CurrentArmor >= 100 then
