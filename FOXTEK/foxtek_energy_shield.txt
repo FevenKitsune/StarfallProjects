@@ -1,0 +1,29 @@
+--@name FOXTEK Energy Shield
+--@author Feven
+--@server
+
+
+hook.add("PlayerSpawn", "", function(ply)
+    if ply == owner() then
+        timer.simple(0.1, function()
+            ply:setArmor(100)
+        end)
+    end
+end)
+
+hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
+    if target ~= owner() then return end -- target was not owner, ignore damage
+    
+    timer.remove("RegenerateShield")
+    
+    timer.simple(5, function()
+        timer.create("RegenerateShield", 0.04, 0, function()
+            local CurrentArmor = owner():getArmor()
+            if CurrentArmor >= 100 then
+                timer.remove("RegenerateShield")
+                return
+            end
+            owner():setArmor(CurrentArmor + 1)
+        end)
+    end)
+end)

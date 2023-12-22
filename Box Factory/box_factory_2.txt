@@ -32,9 +32,9 @@ else
         local e = net.readEntity(function(re)
             --local meshd = mesh.createFromTable(vtab, nil)
             -- generate uv with writeUV
-            local meshd = mesh.generate(vtab, nil)
-            mesh.generate(meshd, MATERIAL.POLYGON, 
-            re:setMesh(meshd)
+            --local meshd = mesh.generate(vtab, nil)
+--            mesh.generate(meshd, MATERIAL.POLYGON, 
+            --re:setMesh(meshd)
             re:setMaterial("hunter/myplastic")
         end)
         
