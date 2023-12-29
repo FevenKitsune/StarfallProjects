@@ -1,30 +1,56 @@
 --@name FOXTEK Energy Shield
 --@author Feven
---@server
+--@shared
 
-
-hook.add("PlayerSpawn", "", function(ply)
-    if ply == owner() then
-        timer.simple(0.1, function()
-            ply:setArmor(100)
-        end)
-    end
-end)
-
-hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
-    if target ~= owner() then return end -- target was not owner, ignore damage
+if SERVER then
+    hook.add("PlayerSpawn", "", function(ply)
+        if ply == owner() then
+            timer.simple(0.1, function()
+                ply:setArmor(100)
+            end)
+        end
+    end)
     
-    timer.remove("RegenerateShield")
-    timer.remove("ShieldCooldown")
-    
-    timer.create("ShieldCooldown", 5, 1, function()
-        timer.create("RegenerateShield", 0.04, 0, function()
-            local CurrentArmor = owner():getArmor()
-            if CurrentArmor >= 100 then
-                timer.remove("RegenerateShield")
-                return
-            end
-            owner():setArmor(CurrentArmor + 1)
+    hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
+        if target ~= owner() then return end -- target was not owner, ignore damage
+        
+        timer.remove("RegenerateShield")
+        timer.remove("ShieldCooldown")
+        
+        timer.create("ShieldCooldown", 5, 1, function()
+            timer.create("RegenerateShield", 0.04, 0, function()
+                local CurrentArmor = owner():getArmor()
+                if CurrentArmor >= 100 then
+                    timer.remove("RegenerateShield")
+                    return
+                end
+                owner():setArmor(CurrentArmor + 1)
+            end)
         end)
     end)
-end)
+
+else
+    if player() ~= owner() then return end
+    hook.add("drawhud", "", function()
+        
+        
+        function render.drawRectPct(x, y, w, h)
+            local wx, wy = render.getGameResolution()
+            render.drawRect( (x / 100) * wx, (y / 100) * wy, (w / 100) * wx, (h / 100) * wy )
+        end
+        
+        function render.drawRectOutlinePct(x, y, w, h, thickness)
+            local wx, wy = render.getGameResolution()
+            render.drawRectOutline( (x / 100) * wx, (y / 100) * wy, (w / 100) * wx, (h / 100) * wy, thickness )
+        end
+        
+        -- Shield bar primatives
+        render.setColor( Color(45, 119, 191, 200) )
+        render.drawRectPct( 85.1, 2.7, math.remap( owner():getArmor(), 0, 100, 0, 11.4), 5.4)
+        render.setColor( Color(156, 199, 239) )
+        render.drawRectOutlinePct( 85.1, 2.7, 11.4, 5.4, 2)
+        
+    end)
+    
+    enableHud(player(), true)
+end
