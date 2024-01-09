@@ -14,6 +14,42 @@ if SERVER then
     hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
         if target ~= owner() then return end -- target was not owner, ignore damage
         
+        -- Disable HEALTH damage if shield is in-tact.
+        local CurrentArmor = owner():getArmor()
+        local CurrentHealth = owner():getHealth()
+        
+        local SuitDamage = (amount / 5) * 4
+        local RollOverDamage = 0
+        
+        if SuitDamage > CurrentArmor then
+            RollOverDamage = math.abs(CurrentArmor - SuitDamage)
+            SuitDamage = CurrentArmor
+        end
+        
+        
+        if type == 32 then
+            SuitDamage = 0
+            -- If type is falling, then treat as rollover damage to disable regeneration.
+            --RollOverDamage = amount
+        end
+        
+        local HealthDamage = (amount - SuitDamage)
+        
+        print(type)
+        print("Suit damage: " .. SuitDamage)
+        print("Rollover damage: " .. RollOverDamage)
+        print("Health damage: " .. HealthDamage)
+        
+        
+        if RollOverDamage == 0 then
+            owner():setHealth(CurrentHealth + HealthDamage)
+        end
+        
+        if owner():getHealth() >= 100 then
+            owner():setHealth(100)
+        end
+        
+        
         timer.remove("RegenerateShield")
         timer.remove("ShieldCooldown")
         

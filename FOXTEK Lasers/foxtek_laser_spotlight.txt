@@ -40,9 +40,9 @@ end
 
 local fp = false
 local n = 5
-local R = 25000
+local R = 5000
 local SPEED = .4
-local SPREAD_P = .75
+local SPREAD_P = .5
 local SPREAD_T = .5
 local DENSITY = 10
 

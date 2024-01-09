@@ -31,8 +31,8 @@ timer.create("updateEntityList", 1, 0, function()
             return nil
         end
         
-        if ent:isValid() and owner:getName() == "navygrren" then
-        --if ent:isValid() and color[4] < 25 then
+        --if ent:isValid() and owner:getName() == "" then
+        if ent:isValid() and color[4] < 25 then
         --if ent:isValid() and color[4] < 25 then
         --if ent:isValid() and (ent:getClass() == "starfall_processor" or ent:getClass() == "gmod_wire_expression2") then
             return ent

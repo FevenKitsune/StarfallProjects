@@ -3,10 +3,10 @@
 --@server
 
 -- Define variables
-local blacklistNameTable = {}
+local blacklistNameTable = {""}
 local pos = chip():getPos()
 local max = 5
-local size = 75
+local size = 25
 blacklist = {}
 
 -- Create an outer hologram representing the blacklist bubble

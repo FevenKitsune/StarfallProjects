@@ -3,8 +3,8 @@
 --@client
 
 local emitter = particle.create( chip():getPos(), false)
-local sizex = 1
-local sizey = 200
+local sizex = 100
+local sizey = 100
 local ready = false
 local pmax = 100
 if hasPermission("convar") then

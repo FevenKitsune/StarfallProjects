@@ -7,8 +7,8 @@ local holos = {}
 --local voxel_size = 3.063
 local voxel_size = 11.875
 --local voxel_size = 379.666
-local refresh_rate = .00
-local length = 50
+local refresh_rate = .5
+local length = 25
 local direction = Vector(1,0,0)
 
 function change_direction()

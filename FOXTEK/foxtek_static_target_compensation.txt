@@ -1,0 +1,50 @@
+--@name FOXTEK Static Target Compensation
+--@author FOXTEK
+--@shared
+
+if SERVER then
+    local ent_gun
+    local ent_ammo
+    
+    wire.adjustPorts({
+        Gun = "entity",
+        Ammo = "entity"
+    }, nil)
+    
+    hook.add("input", "HandleEntityInput", function(name, value)
+        if not value or not value:isValid() then
+            return
+        end
+        
+        if name == "Gun" then
+            ent_gun = value
+            
+            if not ent_gun:acfIsGun() then
+                print("This is not an ACF gun...")
+                return
+            end
+            
+            local gun_specs = acf.getGunSpecs(ent_gun:acfName())
+            printTable(gun_specs)
+            
+        elseif name == "Ammo" then
+            ent_ammo = value
+            
+            if not ent_ammo:acfIsAmmo() then
+                print("This is not ACF ammo...")
+                return
+            end
+            
+            local ammo_specs = ent_ammo:acfMuzzleVel()
+            local drag_coef = ent_ammo:acfDragCoef()
+            print("Muzzle Velocity: " .. ammo_specs)
+            print("Drag Coef: " .. drag_coef)
+        end
+    end)
+    
+    
+    
+    return
+else
+    return
+end
