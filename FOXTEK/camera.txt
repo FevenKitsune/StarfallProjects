@@ -19,7 +19,7 @@ end
 
 if CLIENT then
     local points = {}
-    local pixelsize = 32
+    local pixelsize = 8
     local camera
     local FOV = 90
     local renderDistance = 512
@@ -67,7 +67,15 @@ if CLIENT then
             local ray = trace.line( camera:getPos() + (screenDirectionVector * 15), camera:getPos() + (screenDirectionVector * renderDistance) )
             
             -- Push pixel to render target.
-            render.setColor( Color(math.abs(ray["Fraction"]-1) * 255, 0, 0) )
+            if ray["Hit"] then
+                local ent = ray["Entity"]
+                local diff = math.max( ray["HitNormal"]:dot( Vector(10, 10, 10):getNormalized() ), 0.0)
+                local color = ent:getColor() * diff
+                color:setA(255)
+                render.setColor( color )
+            else
+                render.setColor( Color(255, 255, 255) )
+            end
             render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
         end
     end)
