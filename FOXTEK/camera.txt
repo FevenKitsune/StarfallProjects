@@ -39,6 +39,10 @@ if CLIENT then
     render.createRenderTarget("drawBuffer")
     
     hook.add("render", "", function()
+        render.selectRenderTarget()
+        render.setRenderTargetTexture("drawBuffer")
+        render.drawTexturedRect(0, 0, 512, 512)
+        
         while (quotaCheck(0.8)) do
             render.selectRenderTarget("drawBuffer")
             if camera == nil or not camera:isValid() then return end
@@ -66,10 +70,6 @@ if CLIENT then
             render.setColor( Color(math.abs(ray["Fraction"]-1) * 255, 0, 0) )
             render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
         end
-
-        render.selectRenderTarget()
-        render.setRenderTargetTexture("drawBuffer")
-        render.drawTexturedRect(0, 0, 512, 512)
     end)
     
     print("Client ready! Requesting camera...")
