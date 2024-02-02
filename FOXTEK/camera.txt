@@ -21,7 +21,7 @@ end
 
 if CLIENT then
     local points = {}
-    local pixelsize = 2
+    local pixelsize = 16
     local camera
     local lighting
     local FOV = 45

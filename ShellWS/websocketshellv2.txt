@@ -87,7 +87,7 @@ else
     end
     
     
-    local ws = WebSocket("64.99.227.2", 4321, false) -- WebSocket(url, port, encrypted?)
+    local ws = WebSocket("127.0.0.1", 8765, false) -- WebSocket(url, port, encrypted?)
     
     -- Socket connect function.
     function ws:onConnected()
