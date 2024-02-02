@@ -8,28 +8,31 @@ if SERVER then
     constraint.weld(screen, chip())
     
     local camera = prop.create( chip():getPos() + Vector(0,0,65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true )
+    local lighting = prop.create( chip():getPos() + Vector(50,0,100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true )
 
     net.receive("clientInitialized", function(len, ply)
         print("Client " .. ply:getName() .. " is ready. Sending camera data.")
         net.start("sendCameraEntity")
         net.writeEntity(camera)
+        net.writeEntity(lighting)
         net.send(ply)
     end)
 end
 
 if CLIENT then
     local points = {}
-    local pixelsize = 8
+    local pixelsize = 4
     local camera
-    local FOV = 90
-    local renderDistance = 512
+    local lighting
+    local FOV = 45
+    local renderDistance = 2048
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
-    
     
     net.receive("sendCameraEntity", function(len, ply)
         print("Camera found!")
         camera = net.readEntity()
+        lighting = net.readEntity()
     end)
     
     local function quotaCheck(n)
@@ -43,9 +46,9 @@ if CLIENT then
         render.setRenderTargetTexture("drawBuffer")
         render.drawTexturedRect(0, 0, 512, 512)
         
-        while (quotaCheck(0.8)) do
+        while (quotaCheck(0.9)) do
             render.selectRenderTarget("drawBuffer")
-            if camera == nil or not camera:isValid() then return end
+            if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
             
             -- Increment scanline by 1.
             viewportRayTargetX = viewportRayTargetX + pixelsize
@@ -69,8 +72,16 @@ if CLIENT then
             -- Push pixel to render target.
             if ray["Hit"] then
                 local ent = ray["Entity"]
-                local diff = math.max( ray["HitNormal"]:dot( Vector(10, 10, 10):getNormalized() ), 0.0)
-                local color = ent:getColor() * diff
+                -- BlinnPhong Lighting
+                
+                local lightDirection = lighting:getPos() - ray["HitPos"]
+                lightDirection:normalize()
+                local viewDirection = (camera:getPos() + (screenDirectionVector * 15)) - ray["HitPos"]
+                viewDirection:normalize()
+                local halfwayDirection = lightDirection + viewDirection
+                halfwayDirection:normalize()
+                local specular = math.pow( math.max( ray["HitNormal"]:dot(halfwayDirection), 0.0), 3)
+                local color = ent:getColor() * specular
                 color:setA(255)
                 render.setColor( color )
             else
