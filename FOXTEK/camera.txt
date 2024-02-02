@@ -1,0 +1,78 @@
+--@name Camera
+--@author FOXTEK (Feven Kitsune)
+--@shared
+
+if SERVER then
+    local screen = prop.createComponent(chip():getPos() + Vector(0,0,65), chip():getAngles() + Angle(90,0,0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
+    screen:linkComponent(chip())
+    constraint.weld(screen, chip())
+    
+    local camera = prop.create( chip():getPos() + Vector(0,0,65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true )
+
+    net.receive("clientInitialized", function(len, ply)
+        print("Client " .. ply:getName() .. " is ready. Sending camera data.")
+        net.start("sendCameraEntity")
+        net.writeEntity(camera)
+        net.send(ply)
+    end)
+end
+
+if CLIENT then
+    local points = {}
+    local pixelsize = 32
+    local camera
+    local FOV = 90
+    local renderDistance = 512
+    local cameraResolutionX, cameraResolutionY = 1024, 1024
+    local viewportRayTargetX, viewportRayTargetY = 1, 1
+    
+    
+    net.receive("sendCameraEntity", function(len, ply)
+        print("Camera found!")
+        camera = net.readEntity()
+    end)
+    
+    local function quotaCheck(n)
+        return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+    end
+    
+    render.createRenderTarget("drawBuffer")
+    
+    hook.add("render", "", function()
+        while (quotaCheck(0.8)) do
+            render.selectRenderTarget("drawBuffer")
+            if camera == nil or not camera:isValid() then return end
+            
+            -- Increment scanline by 1.
+            viewportRayTargetX = viewportRayTargetX + pixelsize
+            
+            -- Scanline code. 
+            if viewportRayTargetX > cameraResolutionX then
+                -- Scanline has reached end of line, return scanline to start of next line.
+                viewportRayTargetX = 1
+                viewportRayTargetY = viewportRayTargetY + pixelsize
+            end
+            if viewportRayTargetY > cameraResolutionY then
+                -- Scanline has reached the bottom of the frame, return scanline to top of frame.
+                viewportRayTargetY = 1
+            end
+            
+            -- Compute aim vector from 2D screen space based on the current scanline point.
+            local screenDirectionVector = trace.aimVector( camera:getAngles(), FOV, viewportRayTargetX, viewportRayTargetY, cameraResolutionX, cameraResolutionY)
+            -- Send trace from camera prop based on computed aim vector.
+            local ray = trace.line( camera:getPos() + (screenDirectionVector * 15), camera:getPos() + (screenDirectionVector * renderDistance) )
+            
+            -- Push pixel to render target.
+            render.setColor( Color(math.abs(ray["Fraction"]-1) * 255, 0, 0) )
+            render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
+        end
+
+        render.selectRenderTarget()
+        render.setRenderTargetTexture("drawBuffer")
+        render.drawTexturedRect(0, 0, 512, 512)
+    end)
+    
+    print("Client ready! Requesting camera...")
+    net.start("clientInitialized")
+    net.send()
+end
