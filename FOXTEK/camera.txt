@@ -21,13 +21,15 @@ end
 
 if CLIENT then
     local points = {}
-    local pixelsize = 4
+    local pixelsize = 2
     local camera
     local lighting
     local FOV = 45
     local renderDistance = 2048
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
+    local lightColor = Vector( 1 )
+    local intensity = 14
     
     net.receive("sendCameraEntity", function(len, ply)
         print("Camera found!")
@@ -41,6 +43,14 @@ if CLIENT then
     
     render.createRenderTarget("drawBuffer")
     
+    local function colorToVector3(color)
+        return Vector(color[1], color[2], color[3])
+    end
+    
+    local function vector3ToColor(vector)
+        return Color(vector[1], vector[2], vector[3])
+    end
+        
     hook.add("render", "", function()
         render.selectRenderTarget()
         render.setRenderTargetTexture("drawBuffer")
@@ -74,18 +84,43 @@ if CLIENT then
                 local ent = ray["Entity"]
                 -- BlinnPhong Lighting
                 
+                -- Calculate light direction and distance relative to hit position
                 local lightDirection = lighting:getPos() - ray["HitPos"]
+                local distance = lightDirection:getLength() / 16
                 lightDirection:normalize()
+                
+                -- Calculate view position relative to hit position
                 local viewDirection = (camera:getPos() + (screenDirectionVector * 15)) - ray["HitPos"]
                 viewDirection:normalize()
+                
+                -- Calculate Blinn-Phong halfway direction
                 local halfwayDirection = lightDirection + viewDirection
                 halfwayDirection:normalize()
-                local specular = math.pow( math.max( ray["HitNormal"]:dot(halfwayDirection), 0.0), 3)
-                local color = ent:getColor() * specular
-                color:setA(255)
-                render.setColor( color )
+                
+                -- Calculate specular component
+                local spec = math.pow( math.max( ray["HitNormal"]:dot(halfwayDirection), 0.0), 16)
+                local specular = (intensity * spec * lightColor) / distance
+                
+                -- Calculate diffuse component
+                local diff = math.max ( ray["HitNormal"]:dot(lightDirection), 0.0 )
+                local diffuse = (intensity * diff * lightColor) / distance
+                
+                -- Convert entity RGB colorspace to vector3 floating form
+                local entColor = colorToVector3(ent:getColor()) / Vector(255)
+                
+                local hdrColor = (specular + diffuse) * entColor
+                
+                // Reinhard tone mapping
+                local mapped = hdrColor / (hdrColor + Vector(1))
+                mapped = Vector(mapped[1] ^ 1/2.2, mapped[2] ^ 1/2.2, mapped[3] ^ 1/2.2)
+                
+                -- Return color to RGB colorspace
+                mapped = mapped * 255
+                mapped = vector3ToColor(mapped)
+                
+                render.setColor( mapped )
             else
-                render.setColor( Color(255, 255, 255) )
+                render.setColor( Color(0, 0, 0) )
             end
             render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
         end
