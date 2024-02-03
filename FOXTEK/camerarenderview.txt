@@ -1,0 +1,60 @@
+--@name CameraRenderView
+--@author FOXTEK (Feven Kitsune)
+--@shared
+
+if SERVER then
+    local screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
+    screen:linkComponent(chip())
+    constraint.weld(screen, chip())
+    
+    local camera = prop.create(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true)
+
+    net.receive("clientInitialized", function(len, ply)
+        print("Client " .. ply:getName() .. " is ready. Sending camera data.")
+        net.start("sendCameraEntity")
+        net.writeEntity(camera)
+        net.send(ply)
+    end)
+end
+
+if CLIENT then
+    render.createRenderTarget("drawBuffer")
+    net.receive("sendCameraEntity", function(len, ply)
+        print("Camera found!")
+        camera = net.readEntity()
+    end)
+    
+    
+    local function renderscene()
+        render.selectRenderTarget("drawBuffer")
+        if camera == nil or not camera:isValid() then return end
+        local rvSettings = {
+            origin = camera:getPos() + (camera:getForward() * 25),
+            angles = camera:getAngles(),
+            x = 0, y = 0,
+            w = 1024, h = 1024,
+            drawviewmodel = false,
+        }
+        render.renderView(rvSettings)
+    end
+    
+    local function renderhook()
+        render.selectRenderTarget()
+        render.setRenderTargetTexture("drawBuffer")
+        render.drawTexturedRect(0, 0, 512, 512)
+    end
+    
+    timer.create("distanceCulling", 0.5, 0, function()
+        if player():getPos():getDistance(chip():getPos()) < 300 then
+            hook.add("renderscene", "rendercamera", renderscene)
+            hook.add("render", "rendertarget", renderhook)
+        else
+            hook.remove("renderscene", "rendercamera")
+            hook.remove("render", "rendertarget")
+        end
+    end)
+    
+    print("Client ready! Requesting camera...")
+    net.start("clientInitialized")
+    net.send()
+end
