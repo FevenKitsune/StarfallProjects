@@ -3,12 +3,12 @@
 --@shared
 
 if SERVER then
-    local screen = prop.createComponent(chip():getPos() + Vector(0,0,65), chip():getAngles() + Angle(90,0,0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
+    local screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
     screen:linkComponent(chip())
     constraint.weld(screen, chip())
     
-    local camera = prop.create( chip():getPos() + Vector(0,0,65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true )
-    local lighting = prop.create( chip():getPos() + Vector(50,0,100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true )
+    local camera = prop.create(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true)
+    local lighting = prop.create(chip():getPos() + Vector(50, 0, 100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true)
 
     net.receive("clientInitialized", function(len, ply)
         print("Client " .. ply:getName() .. " is ready. Sending camera data.")
@@ -22,6 +22,7 @@ end
 if CLIENT then
     if player() ~= owner() then return end
     
+    local benchmarkMode = false
     local points = {}
     local pixelsize = 16
     local camera
@@ -31,7 +32,7 @@ if CLIENT then
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
-    local intensity = 4
+    local intensity = 3
     local backgroundColor = Color( 0, 0, 0 )
     
     net.receive("sendCameraEntity", function(len, ply)
@@ -45,7 +46,9 @@ if CLIENT then
     end
     
     render.createRenderTarget("drawBuffer")
-        
+    local renderTimeStart = timer.systime()
+    local renderTimeEnd = 0
+    local renderComplete = false
     hook.add("render", "", function()
         -- Function localizations
         local min = math.min
@@ -78,6 +81,8 @@ if CLIENT then
             end
             if viewportRayTargetY > cameraResolutionY then
                 -- Scanline has reached the bottom of the frame, return scanline to top of frame.
+                renderTimeEnd = timer.systime()
+                renderComplete = true
                 viewportRayTargetY = 1
             end
             
@@ -132,6 +137,12 @@ if CLIENT then
             end
 
             drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
+        end
+        
+        if renderComplete and benchmarkMode then
+            renderComplete = false
+            print(renderTimeEnd - renderTimeStart)
+            renderTimeStart = timer.systime()
         end
     end)
     
