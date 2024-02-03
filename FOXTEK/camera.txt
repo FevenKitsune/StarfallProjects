@@ -23,7 +23,7 @@ if CLIENT then
     if player() ~= owner() then return end
     
     local points = {}
-    local pixelsize = 4
+    local pixelsize = 16
     local camera
     local lighting
     local FOV = 45
@@ -41,20 +41,32 @@ if CLIENT then
     end)
     
     local function quotaCheck(n)
-        return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+        return math.max(quotaAverage(), quotaUsed()) < quotaMax() * n
     end
     
     render.createRenderTarget("drawBuffer")
         
     hook.add("render", "", function()
+        -- Function localizations
+        local min = math.min
+        local max = math.max
+        local pow = math.pow
+        local aimVector = trace.aimVector
+        local line = trace.line
+        local setColor = render.setColor
+        local drawRectFast = render.drawRectFast
+        
         render.selectRenderTarget()
         render.setRenderTargetTexture("drawBuffer")
         render.drawTexturedRect(0, 0, 512, 512)
         
+        if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
+        local cameraAngles = camera:getAngles()
+        local cameraPos = camera:getPos()
+        local lightPos = lighting:getPos()
+        
         render.selectRenderTarget("drawBuffer")
-        while (quotaCheck(0.9)) do
-            if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
-            
+        while quotaCheck(0.9) do
             -- Increment scanline by 1.
             viewportRayTargetX = viewportRayTargetX + pixelsize
             
@@ -70,9 +82,9 @@ if CLIENT then
             end
             
             -- Compute aim vector from 2D screen space based on the current scanline point.
-            local screenDirectionVector = trace.aimVector( camera:getAngles(), FOV, viewportRayTargetX, viewportRayTargetY, cameraResolutionX, cameraResolutionY)
+            local screenDirectionVector = aimVector(cameraAngles, FOV, viewportRayTargetX, viewportRayTargetY, cameraResolutionX, cameraResolutionY)
             -- Send trace from camera prop based on computed aim vector.
-            local ray = trace.line( camera:getPos() + (screenDirectionVector * 15), camera:getPos() + (screenDirectionVector * renderDistance) )
+            local ray = line(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
             
             -- Push pixel to render target.
             if ray["Hit"] then
@@ -80,12 +92,12 @@ if CLIENT then
                 -- BlinnPhong Lighting
                 
                 -- Calculate light direction and distance relative to hit position
-                local lightDirection = lighting:getPos() - ray["HitPos"]
+                local lightDirection = lightPos - ray["HitPos"]
                 local distance = lightDirection:getLength() / 64
                 lightDirection:normalize()
                 
                 -- Calculate view position relative to hit position
-                local viewDirection = (camera:getPos() + (screenDirectionVector * 15)) - ray["HitPos"]
+                local viewDirection = (cameraPos + (screenDirectionVector * 15)) - ray["HitPos"]
                 viewDirection:normalize()
                 
                 -- Calculate Blinn-Phong halfway direction
@@ -93,34 +105,33 @@ if CLIENT then
                 halfwayDirection:normalize()
                 
                 -- Calculate specular component
-                local spec = math.pow( math.max( ray["HitNormal"]:dot(halfwayDirection), 0.0), 16)
-                local specular = (intensity * spec * lightColor) / distance
+                local specular = Vector(pow(max(ray["HitNormal"]:dot(halfwayDirection), 0.0), 16) * intensity)
+                specular:vmul(lightColor)
+                specular:vdiv(Vector(distance))
                 
                 -- Calculate diffuse component
-                local diff = math.max ( ray["HitNormal"]:dot(lightDirection), 0.0 )
-                local diffuse = (intensity * diff * lightColor) / distance
+                local diffuse = Vector(max(ray["HitNormal"]:dot(lightDirection), 0.0) * intensity)
+                diffuse:vmul(lightColor)
+                diffuse:vdiv(Vector(distance))
                 
                 local entColor = ent:getColor()
                 local hdrColor = specular + diffuse
-                hdrColor[1] = hdrColor[1] * (entColor[1] / 255)
-                hdrColor[2] = hdrColor[2] * (entColor[2] / 255)
-                hdrColor[3] = hdrColor[3] * (entColor[3] / 255)
+                hdrColor:vmul(entColor / 255)
                 
-                // Reinhard tone mapping
+                -- Reinhard tone mapping
                 local mapped = hdrColor / (hdrColor + Vector(1))
                 mapped[1] = mapped[1] ^ (1/2.2)
                 mapped[2] = mapped[2] ^ (1/2.2)
                 mapped[3] = mapped[3] ^ (1/2.2)
-                
+                mapped:vmul(Vector(255))
                 -- Return color to RGB colorspace
-                mapped = mapped * 255
-                local pixelColor = Color(mapped[1], mapped[2], mapped[3])
-                render.setColor( pixelColor )
+                
+                setColor(Color(mapped[1], mapped[2], mapped[3]))
             else
-                render.setColor( backgroundColor )
+                setColor(backgroundColor)
             end
 
-            render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
+            drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
         end
     end)
     
