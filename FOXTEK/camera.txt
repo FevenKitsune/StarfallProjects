@@ -20,16 +20,19 @@ if SERVER then
 end
 
 if CLIENT then
+    if player() ~= owner() then return end
+    
     local points = {}
-    local pixelsize = 16
+    local pixelsize = 4
     local camera
     local lighting
     local FOV = 45
-    local renderDistance = 2048
+    local renderDistance = 4096
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
-    local intensity = 14
+    local intensity = 4
+    local backgroundColor = Color( 0, 0, 0 )
     
     net.receive("sendCameraEntity", function(len, ply)
         print("Camera found!")
@@ -42,22 +45,14 @@ if CLIENT then
     end
     
     render.createRenderTarget("drawBuffer")
-    
-    local function colorToVector3(color)
-        return Vector(color[1], color[2], color[3])
-    end
-    
-    local function vector3ToColor(vector)
-        return Color(vector[1], vector[2], vector[3])
-    end
         
     hook.add("render", "", function()
         render.selectRenderTarget()
         render.setRenderTargetTexture("drawBuffer")
         render.drawTexturedRect(0, 0, 512, 512)
         
+        render.selectRenderTarget("drawBuffer")
         while (quotaCheck(0.9)) do
-            render.selectRenderTarget("drawBuffer")
             if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
             
             -- Increment scanline by 1.
@@ -86,7 +81,7 @@ if CLIENT then
                 
                 -- Calculate light direction and distance relative to hit position
                 local lightDirection = lighting:getPos() - ray["HitPos"]
-                local distance = lightDirection:getLength() / 16
+                local distance = lightDirection:getLength() / 64
                 lightDirection:normalize()
                 
                 -- Calculate view position relative to hit position
@@ -105,23 +100,26 @@ if CLIENT then
                 local diff = math.max ( ray["HitNormal"]:dot(lightDirection), 0.0 )
                 local diffuse = (intensity * diff * lightColor) / distance
                 
-                -- Convert entity RGB colorspace to vector3 floating form
-                local entColor = colorToVector3(ent:getColor()) / Vector(255)
-                
-                local hdrColor = (specular + diffuse) * entColor
+                local entColor = ent:getColor()
+                local hdrColor = specular + diffuse
+                hdrColor[1] = hdrColor[1] * (entColor[1] / 255)
+                hdrColor[2] = hdrColor[2] * (entColor[2] / 255)
+                hdrColor[3] = hdrColor[3] * (entColor[3] / 255)
                 
                 // Reinhard tone mapping
                 local mapped = hdrColor / (hdrColor + Vector(1))
-                mapped = Vector(mapped[1] ^ 1/2.2, mapped[2] ^ 1/2.2, mapped[3] ^ 1/2.2)
+                mapped[1] = mapped[1] ^ (1/2.2)
+                mapped[2] = mapped[2] ^ (1/2.2)
+                mapped[3] = mapped[3] ^ (1/2.2)
                 
                 -- Return color to RGB colorspace
                 mapped = mapped * 255
-                mapped = vector3ToColor(mapped)
-                
-                render.setColor( mapped )
+                local pixelColor = Color(mapped[1], mapped[2], mapped[3])
+                render.setColor( pixelColor )
             else
-                render.setColor( Color(0, 0, 0) )
+                render.setColor( backgroundColor )
             end
+
             render.drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
         end
     end)
