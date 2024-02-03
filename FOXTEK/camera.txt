@@ -19,9 +19,7 @@ if SERVER then
     end)
 end
 
-if CLIENT then
-    if player() ~= owner() then return end
-    
+if CLIENT then    
     local benchmarkMode = false
     local points = {}
     local pixelsize = 16
@@ -49,7 +47,7 @@ if CLIENT then
     local renderTimeStart = timer.systime()
     local renderTimeEnd = 0
     local renderComplete = false
-    hook.add("render", "", function()
+    local function renderHook()
         -- Function localizations
         local min = math.min
         local max = math.max
@@ -143,6 +141,14 @@ if CLIENT then
             renderComplete = false
             print(renderTimeEnd - renderTimeStart)
             renderTimeStart = timer.systime()
+        end
+    end
+    
+    timer.create("distanceCulling", 0.5, 0, function()
+        if player():getPos():getDistance(chip():getPos()) < 500 then
+            hook.add("render", "rayTracer", renderHook)
+        else
+            hook.remove("render", "rayTracer")
         end
     end)
     
