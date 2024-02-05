@@ -40,7 +40,8 @@ if SERVER then
         local returnedRow = net.readInt(16)
         if returnedRow ~= 0 then
             -- Client returned row data, extract color data and insert into SERVER pixel buffer.
-            local dataBuffer = net.readTable()
+            local dataBuffer = net.readString()
+            printConsole(#dataBuffer)
             -- TODO: How do I insert into the SERVER pixel buffer at the correct index offset?
             if DEBUG then printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow)) end
             printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow))
@@ -48,7 +49,7 @@ if SERVER then
             -- What if I just send the table back to all clients?
             net.start("rowDataAvailable")
             net.writeInt(returnedRow, 16)
-            net.writeTable(dataBuffer)
+            net.writeString(dataBuffer)
             net.send()
         end
 
@@ -65,12 +66,12 @@ if SERVER then
             end
         end
         
-        workerStatus[nextWorker] = 1
-        
         if nextWorker == -1 then
             print("No more work!")
             return
         end
+        
+        workerStatus[nextWorker] = 1
         
         net.start("createWorker")
         if DEBUG then printConsole("Requesting row " .. tostring(nextWorker + 1) .. " from client " .. ply:getName()) end
@@ -80,7 +81,7 @@ if SERVER then
 end
 
 if CLIENT then    
-    --if player() ~= owner() then return end
+    if player() ~= owner() then return end
 
     local benchmarkMode = true
     local points = {}
@@ -94,6 +95,7 @@ if CLIENT then
     local backgroundColor = Color(0, 0, 0)
     local pixelbuffer = {}
     local rowbuffer = {}
+    local pixelStream
     
     -- Metatable function to return a default color value if the table lookup misses.
     function setDefault(t, d)
@@ -105,10 +107,15 @@ if CLIENT then
     
     net.receive("rowDataAvailable", function(len, ply)
         local rowNumber = net.readInt(16)
-        local colorData = net.readTable()
-        
-        for k, v in ipairs(colorData) do
-            pixelbuffer[(rowNumber - 1) * (cameraResolutionX / pixelsize) + k] = v
+        local colorData = net.readString()
+        colorData = bit.decompress(colorData)
+        local colorStream = bit.stringstream(colorData)
+        local i
+        for i = 1, colorStream:size() / 3 do
+            local R = colorStream:readUInt8()
+            local G = colorStream:readUInt8()
+            local B = colorStream:readUInt8()
+            pixelbuffer[(rowNumber - 1) * (cameraResolutionX / pixelsize) + (i / 3)] = Color(R, G, B)
         end
     end)
     
@@ -192,6 +199,7 @@ if CLIENT then
         local cameraAngles = camera:getAngles()
         local cameraPos = camera:getPos()
         local lightPos = lighting:getPos()
+        pixelStream = bit.stringstream()
         
         for column = 1, cameraResolutionX / pixelsize do
             if not quotaCheck(0.8) then
@@ -248,8 +256,10 @@ if CLIENT then
                 -- Ray not hit color
                 pixelcolor = Color(255, 0, 0)
             end
-            
-            rowbuffer[column] = pixelcolor
+            pixelStream:writeUInt8(pixelcolor[1])
+            pixelStream:writeUInt8(pixelcolor[2])
+            pixelStream:writeUInt8(pixelcolor[3])
+            --rowbuffer[column] = pixelcolor
             --pixelbuffer[(row - 1) * (cameraResolutionX / pixelsize) + column] = pixelcolor
             --print((row - 1) * (cameraResolutionX / pixelsize) + column)
         end
@@ -269,9 +279,12 @@ if CLIENT then
             if quotaCheck(0.8) and renderField(row) then
                 hook.remove("think", "workerMonitor")
                 if DEBUG then printConsole("Worker " .. tostring(row) .. " finished!") end
+                local data = pixelStream:getString()
+                local compressedData = bit.compress(data)
+                printConsole(#compressedData)
                 net.start("readyForWorker")
                 net.writeInt(row, 16)
-                net.writeTable(rowbuffer)
+                net.writeString(compressedData)
                 net.send()
             end
         end)
