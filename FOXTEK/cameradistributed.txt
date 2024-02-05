@@ -3,7 +3,7 @@
 --@shared
 
 local cameraResolutionX, cameraResolutionY = 1024, 1024
-local pixelsize = 16
+local pixelsize = 4
 local DEBUG = false
 
 if SERVER then
@@ -40,8 +40,9 @@ if SERVER then
         local returnedRow = net.readInt(16)
         if returnedRow ~= 0 then
             -- Client returned row data, extract color data and insert into SERVER pixel buffer.
-            local dataBuffer = net.readString()
-            printConsole(#dataBuffer)
+            local dataBufferLength = net.readUInt(16)
+            local dataBuffer = net.readData(dataBufferLength)
+            printConsole("Sending back: " .. #dataBuffer)
             -- TODO: How do I insert into the SERVER pixel buffer at the correct index offset?
             if DEBUG then printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow)) end
             printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow))
@@ -49,7 +50,8 @@ if SERVER then
             -- What if I just send the table back to all clients?
             net.start("rowDataAvailable")
             net.writeInt(returnedRow, 16)
-            net.writeString(dataBuffer)
+            net.writeUInt(dataBufferLength, 16)
+            net.writeData(dataBuffer, dataBufferLength)
             net.send()
         end
 
@@ -81,7 +83,7 @@ if SERVER then
 end
 
 if CLIENT then    
-    if player() ~= owner() then return end
+    --if player() ~= owner() then return end
 
     local benchmarkMode = true
     local points = {}
@@ -107,7 +109,8 @@ if CLIENT then
     
     net.receive("rowDataAvailable", function(len, ply)
         local rowNumber = net.readInt(16)
-        local colorData = net.readString()
+        local colorDataSize = net.readUInt(16)
+        local colorData = net.readData(colorDataSize)
         colorData = bit.decompress(colorData)
         local colorStream = bit.stringstream(colorData)
         local i
@@ -115,7 +118,7 @@ if CLIENT then
             local R = colorStream:readUInt8()
             local G = colorStream:readUInt8()
             local B = colorStream:readUInt8()
-            pixelbuffer[(rowNumber - 1) * (cameraResolutionX / pixelsize) + (i / 3)] = Color(R, G, B)
+            pixelbuffer[(rowNumber - 1) * (cameraResolutionX / pixelsize) + i] = Color(R, G, B)
         end
     end)
     
@@ -254,7 +257,7 @@ if CLIENT then
                 pixelcolor = Color(mapped[1], mapped[2], mapped[3])
             else
                 -- Ray not hit color
-                pixelcolor = Color(255, 0, 0)
+                pixelcolor = backgroundColor
             end
             pixelStream:writeUInt8(pixelcolor[1])
             pixelStream:writeUInt8(pixelcolor[2])
@@ -284,7 +287,8 @@ if CLIENT then
                 printConsole(#compressedData)
                 net.start("readyForWorker")
                 net.writeInt(row, 16)
-                net.writeString(compressedData)
+                net.writeUInt(#compressedData, 16)
+                net.writeData(compressedData, #compressedData)
                 net.send()
             end
         end)
