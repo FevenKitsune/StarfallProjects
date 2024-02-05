@@ -3,7 +3,7 @@
 --@shared
 
 local cameraResolutionX, cameraResolutionY = 1024, 1024
-local pixelsize = 4
+local pixelsize = 2
 local DEBUG = false
 
 if SERVER then
@@ -65,6 +65,17 @@ if SERVER then
             if workerStatus[i] == 0 then
                 nextWorker = i
                 break
+            end
+        end
+        
+        
+        if nextWorker == -1 then
+            -- If there is no more work to be done, but there are some rows not finished, then everyone start working on that.
+            for i = 1, #workerStatus do
+                if workerStatus[i] == 1 then
+                    nextWorker = i
+                    break
+                end
             end
         end
         
@@ -165,7 +176,7 @@ if CLIENT then
                     local cameraPos = camera:getPos()
                     local lightPos = lighting:getPos()
                     for i = 1, (cameraResolutionX / pixelsize) * (cameraResolutionY / pixelsize) do
-                        if not quotaCheck(0.5) then
+                        if not quotaCheck(0.8) then
                             coroutine.yield()
                         end
                         --print(i) 
@@ -182,7 +193,7 @@ if CLIENT then
         end
         
         if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
-        if quotaCheck(0.5) then renderPixelBuffer() end
+        if quotaCheck(0.8) then renderPixelBuffer() end
         
         if renderComplete and benchmarkMode then
             renderComplete = false
