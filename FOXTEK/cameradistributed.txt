@@ -4,11 +4,17 @@
 
 local cameraResolutionX, cameraResolutionY = 1024, 1024
 local pixelsize = 16
-local DEBUG = true
+local DEBUG = false
 
 if SERVER then
     local pixelbuffer = {}
     local availableClients = {}
+    
+    -- 0 = unrendered, 1 = in progress, 2 = finished
+    local workerStatus = {}
+    for i = 1, cameraResolutionY / pixelsize do
+        workerStatus[i] = 0
+    end
     
     local screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
     screen:linkComponent(chip())
@@ -37,17 +43,38 @@ if SERVER then
             local dataBuffer = net.readTable()
             -- TODO: How do I insert into the SERVER pixel buffer at the correct index offset?
             if DEBUG then printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow)) end
+            printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow))
+            workerStatus[returnedRow] = 2
+            -- What if I just send the table back to all clients?
+            net.start("rowDataAvailable")
+            net.writeInt(returnedRow, 16)
+            net.writeTable(dataBuffer)
+            net.send()
         end
 
-        net.start("createWorker")
-        if DEBUG then printConsole("Requesting row " .. tostring(lastRow) .. " from client " .. ply:getName()) end
-        
+        -- FOR DEBUG PURPOSES
+        --if ply ~= owner() then return end
         -- TODO: This code determines what row the client should do next. This needs to be rewritten as it currently only has each client cycle from row 1 to max row.
-        if returnedRow == (cameraResolutionY / pixelsize) then 
-            net.writeInt(1, 16)
-        else
-            net.writeInt(returnedRow + 1, 16)
+        
+        -- Find the next available worker
+        local nextWorker = -1
+        for i = 1, #workerStatus do
+            if workerStatus[i] == 0 then
+                nextWorker = i
+                break
+            end
         end
+        
+        workerStatus[nextWorker] = 1
+        
+        if nextWorker == -1 then
+            print("No more work!")
+            return
+        end
+        
+        net.start("createWorker")
+        if DEBUG then printConsole("Requesting row " .. tostring(nextWorker + 1) .. " from client " .. ply:getName()) end
+        net.writeInt(nextWorker, 16)
         net.send(ply)
     end)
 end
@@ -75,6 +102,15 @@ if CLIENT then
     end
     
     setDefault(pixelbuffer, Color(0, 0, 255))
+    
+    net.receive("rowDataAvailable", function(len, ply)
+        local rowNumber = net.readInt(16)
+        local colorData = net.readTable()
+        
+        for k, v in ipairs(colorData) do
+            pixelbuffer[(rowNumber - 1) * (cameraResolutionX / pixelsize) + k] = v
+        end
+    end)
     
     net.receive("sendCameraEntity", function(len, ply)
         -- Server has responded to request for camera and light entities. Store these in local values and request a work order.
