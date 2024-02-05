@@ -1,0 +1,221 @@
+--@name Camera Distributed
+--@author FOXTEK (Feven Kitsune)
+--@shared
+
+if SERVER then
+    local pixelbuffer = {}
+    
+    local screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
+    screen:linkComponent(chip())
+    constraint.weld(screen, chip())
+    
+    local camera = prop.create(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true)
+    local lighting = prop.create(chip():getPos() + Vector(50, 0, 100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true)
+
+    net.receive("clientInitialized", function(len, ply)
+        print("Client " .. ply:getName() .. " is ready. Sending camera data.")
+        net.start("sendCameraEntity")
+        net.writeEntity(camera)
+        net.writeEntity(lighting)
+        net.send(ply)
+    end)
+    
+    net.receive("readyForWorker", function(len, ply)
+        --print("Client " .. ply:getName() .. " is requesting a new worker.")
+        local lastRow = net.readInt(16)
+        net.start("createWorker")
+        --print("Requesting row " .. tostring(lastRow) .. " from client " .. ply:getName())
+        net.writeInt(lastRow + 1, 16)
+        net.send(ply)
+    end)
+end
+
+if CLIENT then    
+    local benchmarkMode = true
+    local points = {}
+    local pixelsize = 16
+    local camera
+    local lighting
+    local FOV = 45
+    local renderDistance = 4096
+    local cameraResolutionX, cameraResolutionY = 1024, 1024
+    local viewportRayTargetX, viewportRayTargetY = 1, 1
+    local lightColor = Vector( 1 )
+    local intensity = 3
+    local backgroundColor = Color( 0, 0, 0 )
+    local pixelbuffer = {}
+    
+    function setDefault (t, d)
+      local mt = {__index = function () return d end}
+      setmetatable(t, mt)
+    end
+    
+    setDefault(pixelbuffer, Color(0, 0, 255))
+    
+    net.receive("sendCameraEntity", function(len, ply)
+        print("Camera found!")
+        camera = net.readEntity()
+        lighting = net.readEntity()
+        net.start("readyForWorker")
+        net.send()
+    end)
+    
+    local function quotaCheck(n)
+        return math.max(quotaAverage(), quotaUsed()) < quotaMax() * n
+    end
+    
+    local renderPixelBuffer
+    
+    render.createRenderTarget("drawBuffer")
+    local renderTimeStart = timer.systime()
+    local renderTimeEnd = 0
+    local renderComplete = false
+    local function renderHook()
+        -- Function localizations
+        local min = math.min
+        local max = math.max
+        local pow = math.pow
+        local aimVector = trace.aimVector
+        local line = trace.line
+        local setColor = render.setColor
+        local drawRectFast = render.drawRectFast
+        
+        render.selectRenderTarget()
+        render.setRenderTargetTexture("drawBuffer")
+        render.drawTexturedRect(0, 0, 512, 512)
+        
+        if renderPixelBuffer == nil then
+            renderPixelBuffer = coroutine.wrap( function()
+                while true do
+                    local cameraAngles = camera:getAngles()
+                    local cameraPos = camera:getPos()
+                    local lightPos = lighting:getPos()
+                    for i = 1, (cameraResolutionX / pixelsize) * (cameraResolutionY / pixelsize) do
+                        if not quotaCheck(0.5) then
+                            coroutine.yield()
+                        end
+                        --print(i) 
+                        --print(((i-1)*pixelsize)%cameraResolutionX,math.floor(((i-1))/cameraResolutionX)*pixelsize)
+                        render.selectRenderTarget("drawBuffer")
+                        setColor(pixelbuffer[i])
+                        --print("DRAW", ((i - 1) * pixelsize) % 1024, math.floor(((i - 1) * pixelsize) / 1024) * pixelsize)
+                        drawRectFast(((i - 1) * pixelsize) % 1024, math.floor(((i - 1) * pixelsize) / 1024) * pixelsize, pixelsize, pixelsize)
+                    end
+                    --print("Frame done!")
+                end
+                return true
+            end)
+        end
+        
+        if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
+        if quotaCheck(0.5) then renderPixelBuffer() end
+        
+        if renderComplete and benchmarkMode then
+            renderComplete = false
+            --printTable(pixelbuffer)
+            print(renderTimeEnd - renderTimeStart)
+            renderTimeStart = timer.systime()
+        end
+    end
+    
+    local function renderWorker(row)
+        local min = math.min
+        local max = math.max
+        local pow = math.pow
+        local aimVector = trace.aimVector
+        local line = trace.line
+        local cameraAngles = camera:getAngles()
+        local cameraPos = camera:getPos()
+        local lightPos = lighting:getPos()
+        
+        for column = 1, cameraResolutionX / pixelsize do
+            if not quotaCheck(0.8) then
+                coroutine.yield()
+            end
+            --print(column * pixelsize, row * pixelsize)
+            -- Compute aim vector from 2D screen space based on the current scanline point.
+            local screenDirectionVector = aimVector(cameraAngles, FOV, (column - 1) * pixelsize, (row - 1) * pixelsize, cameraResolutionX, cameraResolutionY)
+            -- Send trace from camera prop based on computed aim vector.
+            local ray = line(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
+            local pixelcolor
+            -- Push pixel to render target.
+            if ray["Hit"] then
+                local ent = ray["Entity"]
+                -- BlinnPhong Lighting
+                
+                -- Calculate light direction and distance relative to hit position
+                local lightDirection = lightPos - ray["HitPos"]
+                local distance = lightDirection:getLength() / 64
+                lightDirection:normalize()
+                
+                -- Calculate view position relative to hit position
+                local viewDirection = (cameraPos + (screenDirectionVector * 15)) - ray["HitPos"]
+                viewDirection:normalize()
+                
+                -- Calculate Blinn-Phong halfway direction
+                local halfwayDirection = lightDirection + viewDirection
+                halfwayDirection:normalize()
+                
+                -- Calculate specular component
+                local specular = Vector(pow(max(ray["HitNormal"]:dot(halfwayDirection), 0.0), 16) * intensity)
+                specular:vmul(lightColor)
+                specular:vdiv(Vector(distance))
+                
+                -- Calculate diffuse component
+                local diffuse = Vector(max(ray["HitNormal"]:dot(lightDirection), 0.0) * intensity)
+                diffuse:vmul(lightColor)
+                diffuse:vdiv(Vector(distance))
+                
+                local entColor = ent:getColor()
+                local hdrColor = specular + diffuse
+                hdrColor:vmul(entColor / 255)
+                
+                -- Reinhard tone mapping
+                local mapped = hdrColor / (hdrColor + Vector(1))
+                mapped[1] = mapped[1] ^ (1/2.2)
+                mapped[2] = mapped[2] ^ (1/2.2)
+                mapped[3] = mapped[3] ^ (1/2.2)
+                mapped:vmul(Vector(255))
+                -- Return color to RGB colorspace
+                
+                pixelcolor = Color(mapped[1], mapped[2], mapped[3])
+            else
+                pixelcolor = Color(255, 0, 0)
+            end
+            if player() == owner() then
+                --print("RENDER", (column - 1) * pixelsize, (row - 1) * pixelsize)
+            end
+            pixelbuffer[column * row] = pixelcolor
+        end
+        
+        return true
+    end
+    
+    net.receive("createWorker", function()
+        local row = net.readInt(16)
+        local renderField = coroutine.wrap(renderWorker)
+        
+        hook.add("think", "workerMonitor", function()
+            if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
+            if quotaCheck(0.8) and renderField(row) then
+                hook.remove("think", "workerMonitor")
+                --print("Worker " .. tostring(row) .. " finished!")
+                net.start("readyForWorker")
+                net.writeInt(row, 16)
+                net.send()
+            end
+        end)
+    end)
+
+    timer.create("distanceCulling", 0.5, 0, function()
+        if player():getPos():getDistance(chip():getPos()) < 500 then
+            hook.add("render", "rayTracer", renderHook)
+        else
+            hook.remove("render", "rayTracer")
+        end
+    end)
+    
+    print("Client ready! Requesting camera...")
+    net.start("clientInitialized")
+    net.send()
+end
