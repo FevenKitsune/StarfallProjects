@@ -4,6 +4,7 @@
 
 local cameraResolutionX, cameraResolutionY = 1024, 1024
 local pixelsize = 16
+local DEBUG = true
 
 if SERVER then
     local pixelbuffer = {}
@@ -17,25 +18,31 @@ if SERVER then
     local lighting = prop.create(chip():getPos() + Vector(50, 0, 100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true)
 
     net.receive("clientInitialized", function(len, ply)
-        print("Client " .. ply:getName() .. " is ready. Sending camera data.")
+        -- Client has finished loading and is ready to recieve the camera and light entities.
+        if DEBUG then printConsole("Client " .. ply:getName() .. " is ready. Sending camera data.") end
         net.start("sendCameraEntity")
         net.writeEntity(camera)
         net.writeEntity(lighting)
         net.send(ply)
+        
+        -- Add player to the list of available clients.
         table.insert(availableClients, ply)
     end)
     
     net.receive("readyForWorker", function(len, ply)
-        --print("Client " .. ply:getName() .. " is requesting a new worker.")
+        if DEBUG then printConsole("Client " .. ply:getName() .. " is requesting a new worker.") end
         local returnedRow = net.readInt(16)
         if returnedRow ~= 0 then
+            -- Client returned row data, extract color data and insert into SERVER pixel buffer.
             local dataBuffer = net.readTable()
-            print("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow))
-            printTable(dataBuffer)
+            -- TODO: How do I insert into the SERVER pixel buffer at the correct index offset?
+            if DEBUG then printConsole("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow)) end
         end
 
         net.start("createWorker")
-        --print("Requesting row " .. tostring(lastRow) .. " from client " .. ply:getName())
+        if DEBUG then printConsole("Requesting row " .. tostring(lastRow) .. " from client " .. ply:getName()) end
+        
+        -- TODO: This code determines what row the client should do next. This needs to be rewritten as it currently only has each client cycle from row 1 to max row.
         if returnedRow == (cameraResolutionY / pixelsize) then 
             net.writeInt(1, 16)
         else
@@ -46,7 +53,7 @@ if SERVER then
 end
 
 if CLIENT then    
-    if player() ~= owner() then return end
+    --if player() ~= owner() then return end
 
     local benchmarkMode = true
     local points = {}
@@ -61,6 +68,7 @@ if CLIENT then
     local pixelbuffer = {}
     local rowbuffer = {}
     
+    -- Metatable function to return a default color value if the table lookup misses.
     function setDefault(t, d)
       local mt = {__index = function () return d end}
       setmetatable(t, mt)
@@ -69,10 +77,12 @@ if CLIENT then
     setDefault(pixelbuffer, Color(0, 0, 255))
     
     net.receive("sendCameraEntity", function(len, ply)
+        -- Server has responded to request for camera and light entities. Store these in local values and request a work order.
         print("Camera found!")
         camera = net.readEntity()
         lighting = net.readEntity()
         net.start("readyForWorker")
+        -- Work order 0 means client has not worked on previous job before.
         net.writeInt(0, 16)
         net.send()
     end)
@@ -88,6 +98,7 @@ if CLIENT then
     local renderTimeEnd = 0
     local renderComplete = false
     local function renderHook()
+        -- Hook that draws the local CLIENT pixelbuffer onto the attached screen.
         -- Function localizations
         local min = math.min
         local max = math.max
@@ -136,6 +147,7 @@ if CLIENT then
     end
     
     local function renderWorker(row)
+        -- Worker coroutine. Populates table rowbuffer with data to be sent to the server.
         local min = math.min
         local max = math.max
         local pow = math.pow
@@ -200,27 +212,27 @@ if CLIENT then
                 -- Ray not hit color
                 pixelcolor = Color(255, 0, 0)
             end
-            if player() == owner() then
-                --print("RENDER", (column - 1) * pixelsize, (row - 1) * pixelsize)
-            end
             
             rowbuffer[column] = pixelcolor
             --pixelbuffer[(row - 1) * (cameraResolutionX / pixelsize) + column] = pixelcolor
             --print((row - 1) * (cameraResolutionX / pixelsize) + column)
         end
         
+        -- All columns have finished rendering, end coroutine.
         return true
     end
     
     net.receive("createWorker", function()
+        -- Server has requested a new worker for the given row. Create a worker coroutine and monitor its status.
         local row = net.readInt(16)
         local renderField = coroutine.wrap(renderWorker)
         
         hook.add("think", "workerMonitor", function()
+            -- Monitor worker status. Once worker has finished, remove think hook and send rendered data to server.
             if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
             if quotaCheck(0.8) and renderField(row) then
                 hook.remove("think", "workerMonitor")
-                print("Worker " .. tostring(row) .. " finished!")
+                if DEBUG then printConsole("Worker " .. tostring(row) .. " finished!") end
                 net.start("readyForWorker")
                 net.writeInt(row, 16)
                 net.writeTable(rowbuffer)
@@ -230,6 +242,7 @@ if CLIENT then
     end)
 
     timer.create("distanceCulling", 0.5, 0, function()
+        -- Performance optimization for other clients on the server. If a client is out of range, do not render screen.
         if player():getPos():getDistance(chip():getPos()) < 500 then
             hook.add("render", "rayTracer", renderHook)
         else
