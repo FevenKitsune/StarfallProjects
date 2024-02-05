@@ -2,8 +2,12 @@
 --@author FOXTEK (Feven Kitsune)
 --@shared
 
+local cameraResolutionX, cameraResolutionY = 1024, 1024
+local pixelsize = 16
+
 if SERVER then
     local pixelbuffer = {}
+    local availableClients = {}
     
     local screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
     screen:linkComponent(chip())
@@ -18,32 +22,44 @@ if SERVER then
         net.writeEntity(camera)
         net.writeEntity(lighting)
         net.send(ply)
+        table.insert(availableClients, ply)
     end)
     
     net.receive("readyForWorker", function(len, ply)
         --print("Client " .. ply:getName() .. " is requesting a new worker.")
-        local lastRow = net.readInt(16)
+        local returnedRow = net.readInt(16)
+        if returnedRow ~= 0 then
+            local dataBuffer = net.readTable()
+            print("Client " .. ply:getName() .. " has returned image data for row " .. tostring(returnedRow))
+            printTable(dataBuffer)
+        end
+
         net.start("createWorker")
         --print("Requesting row " .. tostring(lastRow) .. " from client " .. ply:getName())
-        net.writeInt(lastRow + 1, 16)
+        if returnedRow == (cameraResolutionY / pixelsize) then 
+            net.writeInt(1, 16)
+        else
+            net.writeInt(returnedRow + 1, 16)
+        end
         net.send(ply)
     end)
 end
 
 if CLIENT then    
+    if player() ~= owner() then return end
+
     local benchmarkMode = true
     local points = {}
-    local pixelsize = 16
     local camera
     local lighting
     local FOV = 45
     local renderDistance = 4096
-    local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector(1)
     local intensity = 3
     local backgroundColor = Color(0, 0, 0)
     local pixelbuffer = {}
+    local rowbuffer = {}
     
     function setDefault(t, d)
       local mt = {__index = function () return d end}
@@ -57,6 +73,7 @@ if CLIENT then
         camera = net.readEntity()
         lighting = net.readEntity()
         net.start("readyForWorker")
+        net.writeInt(0, 16)
         net.send()
     end)
     
@@ -180,12 +197,16 @@ if CLIENT then
                 
                 pixelcolor = Color(mapped[1], mapped[2], mapped[3])
             else
+                -- Ray not hit color
                 pixelcolor = Color(255, 0, 0)
             end
             if player() == owner() then
                 --print("RENDER", (column - 1) * pixelsize, (row - 1) * pixelsize)
             end
-            pixelbuffer[column * row] = pixelcolor
+            
+            rowbuffer[column] = pixelcolor
+            --pixelbuffer[(row - 1) * (cameraResolutionX / pixelsize) + column] = pixelcolor
+            --print((row - 1) * (cameraResolutionX / pixelsize) + column)
         end
         
         return true
@@ -199,9 +220,10 @@ if CLIENT then
             if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
             if quotaCheck(0.8) and renderField(row) then
                 hook.remove("think", "workerMonitor")
-                --print("Worker " .. tostring(row) .. " finished!")
+                print("Worker " .. tostring(row) .. " finished!")
                 net.start("readyForWorker")
                 net.writeInt(row, 16)
+                net.writeTable(rowbuffer)
                 net.send()
             end
         end)
