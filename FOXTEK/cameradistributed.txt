@@ -40,12 +40,12 @@ if CLIENT then
     local renderDistance = 4096
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
-    local lightColor = Vector( 1 )
+    local lightColor = Vector(1)
     local intensity = 3
-    local backgroundColor = Color( 0, 0, 0 )
+    local backgroundColor = Color(0, 0, 0)
     local pixelbuffer = {}
     
-    function setDefault (t, d)
+    function setDefault(t, d)
       local mt = {__index = function () return d end}
       setmetatable(t, mt)
     end
