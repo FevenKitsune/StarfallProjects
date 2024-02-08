@@ -22,7 +22,7 @@ end
 if CLIENT then    
     local benchmarkMode = false
     local points = {}
-    local pixelsize = 16
+    local pixelsize = 4
     local camera
     local lighting
     local FOV = 45
@@ -88,7 +88,7 @@ if CLIENT then
             local screenDirectionVector = aimVector(cameraAngles, FOV, viewportRayTargetX, viewportRayTargetY, cameraResolutionX, cameraResolutionY)
             -- Send trace from camera prop based on computed aim vector.
             local ray = line(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
-            
+
             -- Push pixel to render target.
             if ray["Hit"] then
                 local ent = ray["Entity"]
@@ -117,7 +117,8 @@ if CLIENT then
                 diffuse:vmul(lightColor)
                 diffuse:vdiv(Vector(distance))
                 
-                local entColor = ent:getColor()
+                --local entColor = ent:getColor()
+                local entColor = render.traceSurfaceColor(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
                 local hdrColor = specular + diffuse
                 hdrColor:vmul(entColor / 255)
                 
@@ -129,6 +130,7 @@ if CLIENT then
                 mapped:vmul(Vector(255))
                 -- Return color to RGB colorspace
                 
+                --setColor(Color(mapped[1], mapped[2], mapped[3]))
                 setColor(Color(mapped[1], mapped[2], mapped[3]))
             else
                 setColor(backgroundColor)
@@ -145,7 +147,7 @@ if CLIENT then
     end
     
     timer.create("distanceCulling", 0.5, 0, function()
-        if player():getPos():getDistance(chip():getPos()) < 500 then
+        if player():getPos():getDistance(chip():getPos()) < 250 then
             hook.add("render", "rayTracer", renderHook)
         else
             hook.remove("render", "rayTracer")
