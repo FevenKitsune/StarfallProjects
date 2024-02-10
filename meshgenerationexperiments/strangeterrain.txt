@@ -65,7 +65,8 @@ for x = 0, gridSize do
     for y = 0, gridSize do
         --heightMap[x][y] = Vector(x*scale, y*scale, math.rand(5, 50))
         --print(perlin(x + math.random(), y + math.random()))
-        heightMap[x][y] = Vector(x*scale, y*scale, 75 + 80 * perlin(x/8, y/8))
+        --heightMap[x][y] = Vector(x*scale, y*scale, 75 + 80 * perlin(x/8, y/8))
+        heightMap[x][y] = Vector(scale, scale, 75 + 80 * perlin(x/8, y/8))
     end
 end
 
@@ -76,6 +77,7 @@ local spawnChunks = coroutine.wrap(function()
                 coroutine.yield()
             end
             
+--[[
             local chunkData = {
                 heightMap[x][y] * Vector(1, 1, 0),
                 heightMap[x+1][y] * Vector(1, 1, 0),
@@ -85,6 +87,18 @@ local spawnChunks = coroutine.wrap(function()
                 heightMap[x+1][y+1] * Vector(1, 1, 0),
                 heightMap[x+1][y+1] * Vector(1, 1, 1),
                 heightMap[x][y+1] * Vector(1, 1, 1)
+            }
+]]
+            
+            local chunkData = {
+                heightMap[x][y] * Vector(0, 0, 0),
+                heightMap[x+1][y] * Vector(1, 0, 0),
+                heightMap[x+1][y] * Vector(1, 0, 1),
+                heightMap[x][y] * Vector(0, 0, 1),
+                heightMap[x][y+1] * Vector(0, 1, 0),
+                heightMap[x+1][y+1] * Vector(1, 1, 0),
+                heightMap[x+1][y+1] * Vector(1, 1, 1),
+                heightMap[x][y+1] * Vector(0, 1, 1)
             }
             
             prop.createCustom(chip():getPos(), Angle(0, 0, 0), { chunkData }, true)
