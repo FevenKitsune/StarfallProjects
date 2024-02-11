@@ -3,8 +3,12 @@
 --@server
 
 local heightMap = {}
-local gridSize = 40
-local scale = 50
+local gridSize = 30
+local scale = 200
+
+local seedA = math.random(1000000000, 9999999999)
+local seedB = math.random(1000000000, 9999999999)
+local seedC = math.random(1000000000, 9999999999)
 
 function randomGradient(ix, iy)
     -- No precomputed gradients mean this works for any number of grid coordinates
@@ -13,11 +17,11 @@ function randomGradient(ix, iy)
     local a = ix
     local b = iy
     
-    a = a * 3284157443
+    a = a * seedA
     b = bit.bxor(b, bit.bor(bit.lshift(a, s), bit.rshift(a, w - s)))
-    b = b * 1911520717
+    b = b * seedB
     a = bit.bxor(a, bit.bor(bit.lshift(b, s), bit.rshift(b, w - s)))
-    a = a * 2048419325
+    a = a * seedC
     
     local random = a * (3.14159265 / bit.bnot(bit.rshift(bit.bnot(0), 1))) -- in [0, 2*Pi]
     local v = Vector2( math.cos(random), math.sin(random) )
@@ -63,41 +67,41 @@ end
 for x = 0, gridSize do
     heightMap[x] = {}
     for y = 0, gridSize do
-        heightMap[x][y] = 75 + 80 * perlin(x/8, y/8)
+        heightMap[x][y] = 500 + 1000 * perlin(x/5, y/5)
     end
 end
 
 local spawnChunks = coroutine.wrap(function()
     for x = 0, gridSize-1 do
+        local chunk = {}
         for y = 0, gridSize-1 do
             if not prop.canSpawn() then
                 coroutine.yield()
             end
-
-            local chunkData = {
-                heightMap[x][y] * Vector(0, 0, 0),
-                heightMap[x+1][y] * Vector(1, 0, 0),
-                heightMap[x+1][y] * Vector(1, 0, 1),
-                heightMap[x][y] * Vector(0, 0, 1),
-                heightMap[x][y+1] * Vector(0, 1, 0),
-                heightMap[x+1][y+1] * Vector(1, 1, 0),
-                heightMap[x+1][y+1] * Vector(1, 1, 1),
-                heightMap[x][y+1] * Vector(0, 1, 1)
-            }
             
-            local chunkData = {
-                Vector(0, 0, 0),
-                Vector(scale, 0, 0),
-                Vector(scale, 0, heightMap[x+1][y]),
-                Vector(0, 0, heightMap[x][y]),
-                Vector(0, scale, 0),
-                Vector(scale, scale, 0),
-                Vector(scale, scale, heightMap[x+1][y+1]),
-                Vector(0, scale, heightMap[x][y+1])
+            local chunkY = y % 10
+            
+            local chunkData = {}
+            chunkData = {
+                Vector(0, chunkY * scale, 0),
+                Vector(scale, chunkY * scale, 0),
+                Vector(scale, chunkY * scale, heightMap[x+1][y]),
+                Vector(0, chunkY * scale, heightMap[x][y]),
+                Vector(0, (chunkY + 1) * scale, 0),
+                Vector(scale, (chunkY + 1) * scale, 0),
+                Vector(scale, (chunkY + 1) * scale, heightMap[x+1][y+1]),
+                Vector(0, (chunkY + 1) * scale, heightMap[x][y+1])
             }
 
-            prop.createCustom(chip():getPos() + Vector2(x, y) * scale, Angle(0, 0, 0), { chunkData }, true)
+            table.insert(chunk, chunkData)
+            
+            if #chunk >= 10 then
+                local root = chunk[1].position
+                prop.createCustom(chip():getPos() + Vector2(x, y) * scale, Angle(0, 0, 0), chunk, true)
+                chunk = {}
+            end
         end
+        
     end
     
     return true
