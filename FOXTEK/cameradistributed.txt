@@ -5,6 +5,7 @@
 local cameraResolutionX, cameraResolutionY = 1024, 1024
 local pixelsize = 2
 local DEBUG = false
+local CPU_QUOTA = 0.3
 
 if SERVER then
     local pixelbuffer = {}
@@ -26,6 +27,9 @@ if SERVER then
     net.receive("clientInitialized", function(len, ply)
         -- Client has finished loading and is ready to recieve the camera and light entities.
         if DEBUG then printConsole("Client " .. ply:getName() .. " is ready. Sending camera data.") end
+        if not ply:testPVS(camera) then
+            print("Client " .. ply:getName() .. " is not within the camera's PVS, dropping client.")
+        end
         net.start("sendCameraEntity")
         net.writeEntity(camera)
         net.writeEntity(lighting)
@@ -176,7 +180,7 @@ if CLIENT then
                     local cameraPos = camera:getPos()
                     local lightPos = lighting:getPos()
                     for i = 1, (cameraResolutionX / pixelsize) * (cameraResolutionY / pixelsize) do
-                        if not quotaCheck(0.8) then
+                        if not quotaCheck(CPU_QUOTA) then
                             coroutine.yield()
                         end
                         --print(i) 
@@ -193,7 +197,7 @@ if CLIENT then
         end
         
         if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
-        if quotaCheck(0.8) then renderPixelBuffer() end
+        if quotaCheck(CPU_QUOTA) then renderPixelBuffer() end
         
         if renderComplete and benchmarkMode then
             renderComplete = false
@@ -216,7 +220,7 @@ if CLIENT then
         pixelStream = bit.stringstream()
         
         for column = 1, cameraResolutionX / pixelsize do
-            if not quotaCheck(0.8) then
+            if not quotaCheck(CPU_QUOTA) then
                 coroutine.yield()
             end
             --print(column * pixelsize, row * pixelsize)
@@ -290,7 +294,7 @@ if CLIENT then
         hook.add("think", "workerMonitor", function()
             -- Monitor worker status. Once worker has finished, remove think hook and send rendered data to server.
             if camera == nil or not camera:isValid() or lighting == nil or not lighting:isValid() then return end
-            if quotaCheck(0.8) and renderField(row) then
+            if quotaCheck(CPU_QUOTA) and renderField(row) then
                 hook.remove("think", "workerMonitor")
                 if DEBUG then printConsole("Worker " .. tostring(row) .. " finished!") end
                 local data = pixelStream:getString()
@@ -307,7 +311,7 @@ if CLIENT then
 
     timer.create("distanceCulling", 0.5, 0, function()
         -- Performance optimization for other clients on the server. If a client is out of range, do not render screen.
-        if player():getPos():getDistance(chip():getPos()) < 500 then
+        if player():getPos():getDistance(chip():getPos()) < 300 then
             hook.add("render", "rayTracer", renderHook)
         else
             hook.remove("render", "rayTracer")
