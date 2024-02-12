@@ -3,8 +3,10 @@
 --@server
 
 local heightMap = {}
-local gridSize = 30
-local scale = 200
+local gridSize = 50
+local scale = 10
+local amplitude = 25
+local zoom = 5
 
 local seedA = math.random(1000000000, 9999999999)
 local seedB = math.random(1000000000, 9999999999)
@@ -67,7 +69,7 @@ end
 for x = 0, gridSize do
     heightMap[x] = {}
     for y = 0, gridSize do
-        heightMap[x][y] = 500 + 1000 * perlin(x/5, y/5)
+        heightMap[x][y] = amplitude + amplitude * perlin(x/zoom, y/zoom)
     end
 end
 
@@ -97,7 +99,7 @@ local spawnChunks = coroutine.wrap(function()
             
             if #chunk >= 10 then
                 local root = chunk[1].position
-                prop.createCustom(chip():getPos() + Vector2(x, y) * scale, Angle(0, 0, 0), chunk, true)
+                local chunkProp = prop.createCustom(chip():getPos() + Vector2(x, y) * scale, Angle(0, 0, 0), chunk, true)
                 chunk = {}
             end
         end
