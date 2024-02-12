@@ -1,0 +1,49 @@
+--@name HEXDUMP
+--@author Feven Kitsune
+--@shared
+
+if SERVER then
+    local prefix = "$"
+
+    hook.add("PlayerSay", "commandHandler", function(ply, text, teamChat)
+        if ply ~= owner() then return end
+
+        if text:sub(1, 1) ~= prefix then return end
+        local args = text:sub(2):split(" ")
+        local command = args[1]
+        table.remove(args, 1)
+
+        print("Command: " .. command)
+        printTable(args)
+        
+        if command == "ls" then
+            net.start("ls")
+            net.send(owner())
+        end
+
+        if command == "isdir" then
+            net.start("isdir")
+            net.writeString(args[1])
+            net.send(owner())
+        end
+
+        return ""
+    end)
+end
+
+if CLIENT and player() == owner() then
+    local cwd = "/"
+
+    net.receive("ls", function(len, ply)
+        print("Recieved command: ls")
+        local files, directories = file.find(cwd .. "*")
+        printTable(files)
+        printTable(directories)
+    end)
+
+    net.receive("isdir", function(len, ply)
+        local dir = net.readString()
+        local exists = file.isDir(cwd .. dir .. "/")
+        print(exists)
+    end)
+end
