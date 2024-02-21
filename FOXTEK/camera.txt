@@ -19,20 +19,21 @@ if SERVER then
     end)
 end
 
-if CLIENT then    
+if CLIENT then
     local benchmarkMode = false
+    local ENABLE_TEXTURES = true
     local points = {}
     local pixelsize = 4
     local camera
     local lighting
-    local FOV = 45
+    local FOV = 90
     local renderDistance = 4096
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
     local intensity = 3
     local backgroundColor = Color( 0, 0, 0 )
-    
+
     net.receive("sendCameraEntity", function(len, ply)
         print("Camera found!")
         camera = net.readEntity()
@@ -54,7 +55,7 @@ if CLIENT then
         local pow = math.pow
         local aimVector = trace.aimVector
         local line = trace.line
-        local setColor = render.setColor
+        local setRGBA = render.setRGBA
         local drawRectFast = render.drawRectFast
         
         render.selectRenderTarget()
@@ -117,10 +118,13 @@ if CLIENT then
                 diffuse:vmul(lightColor)
                 diffuse:vdiv(Vector(distance))
                 
-                --local entColor = ent:getColor()
-                local entColor = render.traceSurfaceColor(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
+                local entityColor = ent:getColor()
                 local hdrColor = specular + diffuse
-                hdrColor:vmul(entColor / 255)
+                if ENABLE_TEXTURES then
+                    local textureColor = render.traceSurfaceColor(cameraPos + (screenDirectionVector * 15), cameraPos + (screenDirectionVector * renderDistance))
+                    hdrColor:vmul(textureColor / 255)
+                end
+                hdrColor:vmul(entityColor / 255)
                 
                 -- Reinhard tone mapping
                 local mapped = hdrColor / (hdrColor + Vector(1))
@@ -131,9 +135,9 @@ if CLIENT then
                 -- Return color to RGB colorspace
                 
                 --setColor(Color(mapped[1], mapped[2], mapped[3]))
-                setColor(Color(mapped[1], mapped[2], mapped[3]))
+                setRGBA(mapped[1], mapped[2], mapped[3], 255)
             else
-                setColor(backgroundColor)
+                setRGBA(0, 0, 0, 255)
             end
 
             drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
