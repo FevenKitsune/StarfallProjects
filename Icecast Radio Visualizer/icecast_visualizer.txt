@@ -9,45 +9,50 @@ local DECAY_FACTOR = 0.9
 local ATTACK_FACTOR = 0.5
 
 if SERVER then 
-    hook.add("PlayerSay","",function(ply,txt,_)
-        local CMDTemp = string.explode(" ",txt)
-        if (CMDTemp[1] == "!vol") then
-            local newVol = tonumber(CMDTemp[2])
-            net.start('changeVol')
-                net.writeFloat(newVol)
+    hook.add("PlayerSay", "", function(ply, txt, _)
+        local command = string.explode(" ", txt)
+        if command[1] == "!vol" then
+            local newVolume = tonumber(command[2])
+            net.start("changeVol")
+                net.writeFloat(newVolume)
             net.send(ply)
             return ""
         end
-    end)    
+    end)
+    
+    local hud = prop.createComponent(chip():getPos() + Vector(0, 20, 0), Angle(0, 0, -90), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
+    hud:linkComponent(chip())
+    constraint.weld(hud, chip())
 end
+
 if CLIENT then
     local fft_new = {}
     local fft_previous = {}
     local fft_smooth = {}
-    local gsnd
+    local globalSound
     
     function playSong()
         local Sounds = {}
         local Volume = 1
         
-        bass.loadURL( URL,"noblock", function( snd, err, errtxt )
-            gsnd = snd
+        bass.loadURL(URL, "noblock", function(snd, err, errtxt)
+            globalSound = snd
             if not isValid(snd) then return end
-            snd:setLooping( Loop )    
 
             net.receive("changeVol",function()
                 Volume = net.readFloat()
             end)
                 
             hook.add("Think", "", function()
+                if snd == nil or not snd:isValid() then return end
                 snd:setPos(chip():getPos())          
                 if player():getPos():getDistance(chip():getPos()) > 6500 then
                     snd:setVolume(0)
                 else
-                    snd:setVolume( Volume )
+                    snd:setVolume(Volume)
                 end                             
             end)
-               
+
             snd:play()
             table.insert(Sounds,snd)
             if isValid(Sounds[2]) then
@@ -66,7 +71,7 @@ if CLIENT then
     end
     
     hook.add("Think", "calculateFFT", function()
-        if gsnd == nil or not gsnd:isValid() then
+        if globalSound == nil or not globalSound:isValid() then
             return
         end
         
@@ -92,75 +97,72 @@ if CLIENT then
         -- Check if the previous FFT values table is empty
         if next(fft_previous) == nil then
             -- If empty, initialize fft_smooth with current FFT values
-            fft_smooth = gsnd:getFFT(3)
+            fft_smooth = globalSound:getFFT(3)
         end
         fft_previous = fft_smooth
-        fft_new=gsnd:getFFT(3)
+        fft_new = globalSound:getFFT(3)
         
         fft_smooth = fft_smoothing(fft_previous, fft_new, ATTACK_FACTOR, DECAY_FACTOR)
         
     end)
     
-    hook.add("render","",function()
+    hook.add("render", "", function()
         if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+        if globalSound == nil or not globalSound:isValid() then return end
         
-        if quotaCheck(0.5) && ramCheck(0.5) then
+        if not quotaCheck(0.5) or not ramCheck(0.5) then return end
+        local saturation = 0
+        local multiplier = 3
+        render.setColor(Color(0, saturation, (fft_smooth[2] or 0) * multiplier):hsvToRGB()) 
+        render.draw3DBox(Vector(0, 512, 0), Angle(), Vector(), Vector(512 * 2))
             
---[[
-            if player() == owner() then
-                net.start("FFTPacket")
-                net.writeTable({fft_smooth[1], fft_smooth[2], fft_smooth[3], fft_smooth[4], fft_smooth[5]})
-                net.send(nil, true)
-            end
-]]
-            local saturation = 0
-            local multiplier = 3
-            render.setColor(Color(0,saturation,(fft_smooth[2] or 0)*multiplier):hsvToRGB()) 
-            render.draw3DBox(Vector(0,512,0),Angle(),Vector(),Vector(512*2))
-                
-            render.setColor(Color(0,saturation,(fft_smooth[3] or 0)*multiplier):hsvToRGB()) 
-            render.draw3DBox(Vector(512,512,0),Angle(0,0,90),Vector(),Vector(512))
-            render.draw3DBox(Vector(-512,512,0),Angle(0,0,90),Vector(),Vector(512))
-                        
-            render.setColor(Color(0,saturation,(fft_smooth[4] or 0)*multiplier):hsvToRGB()) 
-            render.draw3DBox(Vector(0,0,0),Angle(0,0,90),Vector(),Vector(512))  
-                
-            render.setColor(Color(0,saturation,(fft_smooth[5] or 0)*multiplier):hsvToRGB()) 
-            render.draw3DBox(Vector(0,512,512),Angle(0,0,90),Vector(),Vector(512))
+        render.setColor(Color(0, saturation, (fft_smooth[3] or 0) * multiplier):hsvToRGB()) 
+        render.draw3DBox(Vector(512, 512, 0), Angle(0, 0, 90), Vector(), Vector(512))
+        render.draw3DBox(Vector(-512, 512, 0), Angle(0, 0, 90), Vector(), Vector(512))
+                    
+        render.setColor(Color(0, saturation, (fft_smooth[4] or 0) * multiplier):hsvToRGB()) 
+        render.draw3DBox(Vector(0, 0, 0), Angle(0, 0, 90), Vector(), Vector(512)) 
             
-            local amplitude = 900 -- default 350
-            local hueamp = 1
-            local satamp = 10
-            for i=0,49,1 do
-                --render.setColor(Color(i*4,1,1):hsvToRGB())
-                
-                --render.setColor(Color((fft_smooth[i+1] or 0) * hueamp,(fft_smooth[i+1] or 0) * satamp,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
-                --render.setColor(Color((fft_smooth[i+1] or 0) * hueamp,1,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
-                render.setColor(Color(i*(360/50),1,(fft_smooth[i+1] or 0) * satamp):hsvToRGB())
-                render.draw3DBox(
-                    Vector((i%10)*(512/10), 512-(50+(fft_smooth[i+1] or 0) * amplitude), 512 - math.floor(i/10)*(512/10) - 200),
-                    Angle(),
-                    Vector(),
-                    Vector((512/10), 50+(fft_smooth[i+1] or 0) * amplitude, (512/10))
-                )
-            end
---[[
-            render.setFont("Trebuchet24")
-            render.drawText(4, 0, "Currently playing:\n"..currentName.."\n"..currentArtist)
-]]
+        render.setColor(Color(0, saturation, (fft_smooth[5] or 0) * multiplier):hsvToRGB()) 
+        render.draw3DBox(Vector(0, 512, 512), Angle(0, 0, 90), Vector(), Vector(512))
+        
+        local amplitude = 900 -- default 350
+        local hueamp = 1
+        local satamp = 10
+        for i = 0, 49, 1 do
+            render.setColor(Color(i * (360 / 50), 1, (fft_smooth[i + 1] or 0) * satamp):hsvToRGB())
+            render.draw3DBox(
+                Vector((i % 10) * (512 / 10), 512 - (50 + (fft_smooth[i + 1] or 0) * amplitude), 512 - math.floor(i / 10) * (512 / 10) - 200),
+                Angle(),
+                Vector(),
+                Vector((512 / 10), 50 + (fft_smooth[i + 1] or 0) * amplitude, (512 / 10))
+            )
         end
     end)
     
-    if URL and hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
-        playSong() 
-    end
+    hook.add("hudconnected", "AutoRequestPerms", function()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then
+            setupPermissionRequest({"bass.loadURL", "bass.play2D"}, "URL sounds from external sites and 2d sounds")
+            sendPermissionRequest()
+        end
+        hook.remove("hudconnected", "AutoRequestPerms") -- Starfall only lets you request perms once, so remove the hook after the first time
+    end)
     
+    hook.add("hudconnected", "StartMusicOnReconnect", function()
+        if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+            playSong()
+        end
+    end)
     
-    setupPermissionRequest({"bass.loadURL", "bass.play2D"}, "URL sounds from external sites and 2d sounds", true)
+    hook.add("huddisconnected", "StopMusic", function()
+        if globalSound == nil then return end
+        if not globalSound:isValid() then return end
+        globalSound:stop()
+    end)
     
     hook.add("permissionrequest", "permission", function()
-        if URL and hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
-            playSong() 
+        if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+            playSong()
         end
     end)
 end
