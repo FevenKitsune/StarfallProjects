@@ -1,7 +1,6 @@
 --@name FOXTEK Netstream Visualizer
 --@author {Toby} + Feven
 --@shared
---@model models/props_lab/reciever_cart.mdl
 
 
 local URL = "http://198.211.107.63:8000/steam"
@@ -20,7 +19,7 @@ if SERVER then
         end
     end)
     
-    local hud = prop.createComponent(chip():getPos() + Vector(0, 20, 0), Angle(0, 0, -90), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
+    local hud = prop.createComponent(chip():getPos() + Vector(0, 0, 1), Angle(), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
     hud:linkComponent(chip())
     constraint.weld(hud, chip())
 end
