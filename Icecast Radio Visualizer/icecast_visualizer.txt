@@ -43,6 +43,7 @@ if CLIENT then
                 Volume = net.readFloat()
             end)
                 
+--[[
             hook.add("Think", "", function()
                 if snd == nil or not snd:isValid() then return end
                 snd:setPos(chip():getPos())          
@@ -52,6 +53,7 @@ if CLIENT then
                     snd:setVolume(Volume)
                 end                             
             end)
+]]
 
             snd:play()
             table.insert(Sounds,snd)
