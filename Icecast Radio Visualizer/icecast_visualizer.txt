@@ -56,6 +56,8 @@ if SERVER then
     
     chip():setPos(hud:getPos() + hud:getUp() * -1)
     chip():setAngles(hud:getAngles() + Angle(180, 0, 0))
+    chip():setParent(screen)
+    hud:setParent(screen)
 end
 
 if CLIENT then
