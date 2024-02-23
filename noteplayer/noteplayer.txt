@@ -1,0 +1,14 @@
+--@name NotePlayer
+--@author
+--@server
+
+local soundTable = {}
+
+timer.create("pianoLoop", 0.5, 0, function()
+    local soundPath = "instruments/pianoa_440.wav"
+    local piano440 = sound.create(chip(), soundPath)
+        
+--    local idx = table.insert(soundTable, piano440)
+--    soundTable[idx]:play()
+    timer.simple(1, piano440:destroy)
+end)
