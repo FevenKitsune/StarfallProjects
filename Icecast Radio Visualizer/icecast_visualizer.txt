@@ -19,9 +19,43 @@ if SERVER then
         end
     end)
     
-    local hud = prop.createComponent(chip():getPos() + Vector(0, 0, 1), Angle(), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
+    local existingConnections = chip():getLinkedComponents()
+    local hasScreen = false
+    local hasHud = false
+    local mdlScreen = "models/hunter/plates/plate2x2.mdl"
+    local mdlHud = "models/maxofs2d/button_02.mdl"
+    local screen
+    local hud
+    
+    
+    for k, v in ipairs(existingConnections) do
+        if v:getClass() == "starfall_screen" then
+            screen = v
+            hasScreen = true
+        end
+        
+        if v:getClass() == "starfall_hud" then
+            hud = v
+            hasHud = true
+        end
+    end
+    
+    if hasScreen then
+        screen = prop.createComponent(screen:getPos(), screen:getAngles(), "starfall_screen", mdlScreen, true)
+    else
+        screen = prop.createComponent(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(90, 0, 0), "starfall_screen", mdlScreen, true)
+    end
+    screen:linkComponent(chip())
+    
+    if hasHud then
+        hud = prop.createComponent(hud:getPos(), hud:getAngles(), "starfall_hud", mdlHud, true)
+    else
+        hud = prop.createComponent(screen:getPos() + screen:getRight() * 55, screen:getAngles(), "starfall_hud", mdlHud, true)
+    end
     hud:linkComponent(chip())
-    constraint.weld(hud, chip())
+    
+    chip():setPos(hud:getPos() + hud:getUp() * -1)
+    chip():setAngles(hud:getAngles() + Angle(180, 0, 0))
 end
 
 if CLIENT then
