@@ -101,16 +101,19 @@ if CLIENT then
                 mesh.writePosition(v1)
                 mesh.writeUV(0, v1.x / uvSize, v1.y / uvSize)
                 mesh.writeNormal(normal)
+                mesh.writeColor(255, 255, 255, 255)
                 mesh.advanceVertex()
             
                 mesh.writePosition(v2)
                 mesh.writeUV(0, v2.x / uvSize, v2.y / uvSize)
                 mesh.writeNormal(normal)
+                mesh.writeColor(255, 255, 255, 255)
                 mesh.advanceVertex()
             
                 mesh.writePosition(v3)
                 mesh.writeUV(0, v3.x / uvSize, v3.y / uvSize)
                 mesh.writeNormal(normal)
+                mesh.writeColor(255, 255, 255, 255)
                 mesh.advanceVertex()
             end
             
@@ -137,11 +140,21 @@ if CLIENT then
         end
     end)
     
+    --local mat = material.create("UnlitGeneric")
+    --mat:setTexture("$basetexture", "phoenix_storms/ps_grass")
+    
     local mat = material.load("phoenix_storms/ps_grass")
     
-    hook.add('postdrawopaquerenderables', '', function()
+    local holo = hologram.create(Vector(), Angle(), "models/error.mdl", Vector())
+    holo:setNoDraw(true)
+    
+    hook.add('postdrawtranslucentrenderables', '', function(_, _, skybox3d)
+        if skybox3d then return end
+        holo:draw()
+        --render.setColorModulation(1, 1, 1)
+        --render.setBlend(1)
         render.setMaterial(mat)
-        render.pushMatrix( mtx )
+        render.pushMatrix(mtx)
         terrainMesh:draw()
     end)
 end
