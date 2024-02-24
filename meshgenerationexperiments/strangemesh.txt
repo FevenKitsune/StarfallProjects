@@ -14,9 +14,9 @@ if CLIENT then
     local terrainMesh = mesh.createEmpty()
     
     local heightMap = {}
-    local gridSize = 55
+    local gridSize = 50
     local scale = 25
-    local amplitude = 250
+    local amplitude = 25
     local zoom = 5
     
     local seedA = math.random(1000000000, 9999999999)
@@ -88,7 +88,8 @@ if CLIENT then
         return math.max(quotaAverage(), quotaUsed()) < quotaMax() * n
     end
     
-    mesh.generate(terrainMesh, MATERIAL.TRIANGLES, gridSize * gridSize * 2, function()
+    local start = timer.systime()
+    mesh.generate(terrainMesh, MATERIAL.TRIANGLE_STRIP, gridSize * gridSize * 2, function()
         function math.getPolyNormal(p1, p2, p3)
             local e1 = p1 - p2
             local e2 = p1 - p3
@@ -96,43 +97,53 @@ if CLIENT then
             return e2:cross(e1)
         end
         
-        local uvSize = 64
-        
-        function mesh.writePoly(v1, v2, v3)
-            local normal = math.getPolyNormal(v1, v2, v3)
-        
-            mesh.writePosition(v1)
-            mesh.writeUV(0, v1.x / uvSize, v1.y / uvSize)
-            mesh.writeNormal(normal)
-            mesh.writeColor(255, 255, 255, 255)
-            mesh.advanceVertex()
-        
-            mesh.writePosition(v2)
-            mesh.writeUV(0, v2.x / uvSize, v2.y / uvSize)
-            mesh.writeNormal(normal)
-            mesh.writeColor(255, 255, 255, 255)
-            mesh.advanceVertex()
-        
-            mesh.writePosition(v3)
-            mesh.writeUV(0, v3.x / uvSize, v3.y / uvSize)
-            mesh.writeNormal(normal)
-            mesh.writeColor(255, 255, 255, 255)
-            mesh.advanceVertex()
-        end
-        
-        for x = 0, gridSize-1 do
-            local chunk = {}
-            for y = 0, gridSize-1 do
-                mesh.writePoly( Vector(x * scale, y * scale, heightMap[x][y]), 
-                                Vector(x * scale, (y + 1) * scale, heightMap[x][y+1]), 
-                                Vector((x + 1) * scale, y * scale, heightMap[x+1][y]) )
-                mesh.writePoly( Vector((x + 1) * scale, y * scale, heightMap[x+1][y]), 
-                                Vector(x * scale, (y + 1) * scale, heightMap[x][y+1]), 
-                                Vector((x + 1) * scale, (y + 1) * scale, heightMap[x+1][y+1]) )
+        for x = 0, gridSize-1, 2 do
+            -- Traverse forwards
+            for y = 0, (gridSize-1), 1 do
+                local v1 = Vector(x * scale, y * scale, heightMap[x][y])
+                local v2 = Vector((x + 1) * scale, y * scale, heightMap[x+1][y])
+                local v3 = Vector(x * scale, (y + 1) * scale, heightMap[x][y+1])
+                local uvSize = 64
+                local normal = math.getPolyNormal(v3, v2, v1)
+                
+                mesh.writePosition( v2 )
+                    mesh.writeUV(0, v2.x / uvSize, v2.y / uvSize)
+                    mesh.writeNormal(normal)
+                    mesh.writeColor(255, 255, 255, 255)
+                    mesh.advanceVertex()
+                mesh.writePosition( v1 )
+                    mesh.writeUV(0, v1.x / uvSize, v1.y / uvSize)
+                    mesh.writeNormal(normal)
+                    mesh.writeColor(255, 255, 255, 255)
+                    mesh.advanceVertex()
             end
             
+            -- Traverse in reverse
+            for y = (gridSize-1), 0, -1 do
+                local x = x + 1
+                local v1 = Vector(x * scale, y * scale, heightMap[x][y])
+                local v2 = Vector((x + 1) * scale, y * scale, heightMap[x+1][y])
+                local v3 = Vector(x * scale, (y - 1) * scale, heightMap[x][y-1])
+                local uvSize = 64
+                local normal = math.getPolyNormal(v1, v2, v3)
+                
+                mesh.writePosition( v1 )
+                    mesh.writeUV(0, v1.x / uvSize, v1.y / uvSize)
+                    mesh.writeNormal(normal)
+                    mesh.writeColor(255, 255, 255, 255)
+                    mesh.advanceVertex()
+                mesh.writePosition( v2 )
+                    mesh.writeUV(0, v2.x / uvSize, v2.y / uvSize)
+                    mesh.writeNormal(normal)
+                    mesh.writeColor(255, 255, 255, 255)
+                    mesh.advanceVertex()
+            end
         end
     end)
+    
+    local endt = timer.systime()
+    
+    print("Terrain finished generating in ", endt - start, " seconds.")
     
     --local mat = material.create("UnlitGeneric")
     --mat:setTexture("$basetexture", "phoenix_storms/ps_grass")
