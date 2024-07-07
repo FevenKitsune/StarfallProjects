@@ -1,4 +1,4 @@
---@name Surveillance Visor
+--@name PropSearch
 --@author Feven Kitsune
 --@client
 
@@ -16,9 +16,9 @@ hook.add("postdrawopaquerenderables", "", function(depth, skybox)
         if v ~= nil and v:isValid() then
             local modelBoundsA, modelBoundsB = v:getModelBounds()
             render.setColor(Color(255, 0, 0, 255))
-            render.draw3DWireframeBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB)
+            render.draw3DWireframeBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB, false)
             render.setColor(Color(255, 0, 0, 15))
-            render.draw3DBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB)
+            render.draw3DBox(v:getPos(), v:getAngles(), modelBoundsA, modelBoundsB, false)
         end
     end
 end)
