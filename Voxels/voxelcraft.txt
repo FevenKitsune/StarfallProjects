@@ -13,7 +13,7 @@ v_offset = v_offset - offset_calculation_position[3]
 local voxel_model = "models/hunter/blocks/cube05x05x05.mdl"
 local voxel_model_2 = "models/hunter/blocks/cube05x1x05.mdl"
 local voxel_model_3 = "models/hunter/blocks/cube05x105x05.mdl"
-local voxel_material = "phoenix_storms/MetalSet_1-2"
+local voxel_material = "phoenix_storms/ps_grass"
 local DEBUG = false
 
 print(v_offset)
