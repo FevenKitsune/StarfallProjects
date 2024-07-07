@@ -3,7 +3,7 @@
 --@server
 
 -- Define variables
-local blacklistNameTable = {""}
+local blacklistNameTable = {}
 local pos = chip():getPos()
 local max = 5
 local size = 25
