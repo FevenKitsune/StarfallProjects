@@ -27,7 +27,7 @@ local loaded_materials = {}
 
 local function HandleMaterial(mtl, url, width, height, layout)
     if not width or not height then
-        mat:setTexture("$basetexture", "hunter/myplastic")
+        mtl:setTexture("$basetexture", "hunter/myplastic")
         print("Invalid texture URL")
         return
     end
