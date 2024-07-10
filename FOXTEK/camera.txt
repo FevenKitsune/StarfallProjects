@@ -9,6 +9,7 @@ if SERVER then
     
     local camera = prop.create(chip():getPos() + Vector(0, 0, 65), chip():getAngles() + Angle(), "models/dav0r/camera.mdl", true)
     local lighting = prop.create(chip():getPos() + Vector(50, 0, 100), chip():getAngles() + Angle(), "models/sprops/misc/axis_plane.mdl", true)
+    lighting:setNocollideAll(true)
 
     net.receive("clientInitialized", function(len, ply)
         print("Client " .. ply:getName() .. " is ready. Sending camera data.")
@@ -22,16 +23,18 @@ end
 if CLIENT then
     local benchmarkMode = false
     local ENABLE_TEXTURES = true
+    local ENABLE_SHADOWS = true
     local points = {}
-    local pixelsize = 4
+    local pixelsize = 8
     local camera
     local lighting
+    local ambientLight = 0.04
     local FOV = 90
-    local renderDistance = 4096
+    local renderDistance = 4096*4
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
-    local intensity = 3
+    local intensity = 60
     local backgroundColor = Color( 0, 0, 0 )
 
     net.receive("sendCameraEntity", function(len, ply)
@@ -114,7 +117,7 @@ if CLIENT then
                 specular:vdiv(Vector(distance))
                 
                 -- Calculate diffuse component
-                local diffuse = Vector(max(ray["HitNormal"]:dot(lightDirection), 0.0) * intensity)
+                local diffuse = Vector(max(ray["HitNormal"]:dot(lightDirection), ambientLight) * intensity)
                 diffuse:vmul(lightColor)
                 diffuse:vdiv(Vector(distance))
                 
@@ -125,6 +128,14 @@ if CLIENT then
                     hdrColor:vmul(textureColor / 255)
                 end
                 hdrColor:vmul(entityColor / 255)
+                
+                -- Calculate shadows
+                if ENABLE_SHADOWS then
+                    local shadowTrace = line(ray["HitPos"], lightPos, lighting)
+                    if shadowTrace["Hit"] then
+                        hdrColor:vmul( Vector(ambientLight) )
+                    end
+                end
                 
                 -- Reinhard tone mapping
                 local mapped = hdrColor / (hdrColor + Vector(1))
