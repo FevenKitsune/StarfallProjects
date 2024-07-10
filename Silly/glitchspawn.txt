@@ -4,7 +4,9 @@
 
 hook.add("PlayerDeath", "respawn", function(ply, inflictor, attacker)
     if ply ~= owner() then return end
-    concmd("sbsu ragdoll ^")
-    concmd("sbsu unragdoll ^")
+    timer.simple(math.rand(1, 5), function()
+        concmd("sbsu ragdoll ^")
+        concmd("sbsu unragdoll ^")
+    end)
     return
 end)
