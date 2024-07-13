@@ -118,21 +118,29 @@ if SERVER then
     
 else
     -- CLIENT CODE
-    local seedA
-    local seedB
-    local seedC
+    local map
+    
+    local function generateClientHeightMap(seedA, seedB, seedC)
+        map = HeightMap:new(size, scale, seedA, seedB, seedC)
+        if DEBUG then printConsole("Computing gradient...") end
+        map:generate()
+        local mapData = map:getHeightData()
+        if DEBUG then printConsole(table.toString(mapData,nil,true)) end
+    end
     
     net.receive("sendSeedValues", function(len, ply)
         -- Server has responded to request for seed values. Store these locally on the client.
-        seedA = net.readUInt(32)
-        seedB = net.readUInt(32)
-        seedC = net.readUInt(32)
+        local seedA = net.readUInt(32)
+        local seedB = net.readUInt(32)
+        local seedC = net.readUInt(32)
         if DEBUG then
             printConsole("Client has recieved seed values:")
             printConsole("Seed A: " .. tostring(seedA))
             printConsole("Seed B: " .. tostring(seedB))
             printConsole("Seed C: " .. tostring(seedC))
+            printConsole("Generating height map...")
         end
+        generateClientHeightMap(seedA, seedB, seedC)
     end)
     
     net.start("clientReadyRequestSeedValues")
