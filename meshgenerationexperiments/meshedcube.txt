@@ -1,0 +1,91 @@
+--@name Meshed Cube
+--@author Feven Kitsune
+--@shared
+
+--[[
+GOAL: Generate a custom prop with a mesh, without using a HUD.
+]]
+
+local scale = Vector(10)
+
+if SERVER then
+    local cubeHitbox = {{
+        Vector(-1, -1, 1)*scale,
+        Vector(1, -1, 1)*scale,
+        Vector(1, 1, 1)*scale,
+        Vector(-1, 1, 1)*scale,
+        Vector(-1, -1, -1)*scale,
+        Vector(1, -1, -1)*scale,
+        Vector(1, 1, -1)*scale,
+        Vector(-1, 1, -1)*scale
+    }}
+    
+    local cubeEnt = prop.createCustom(chip():getPos(), Angle(0, 0, 0), cubeHitbox, true)
+    
+    net.receive("clientReady", function(len, ply)
+        printConsole("Client " .. ply:getName() .. " is ready. Sending entity.")
+        net.start("cubeEntReady")
+        net.writeEntity(cubeEnt)
+        net.send(ply)
+    end)
+    
+else
+    local mtx = Matrix()
+    mtx:setTranslation(chip():getPos())
+    
+    local cube = mesh.createEmpty()
+    local cubeEnt
+    
+    mesh.generate(cube, MATERIAL.TRIANGLE_STRIP, 12, function()
+        function math.getPolyNormal(p1, p2, p3)
+            local e1 = p1 - p2
+            local e2 = p1 - p3
+            
+            return e2:cross(e1)
+        end
+        
+        local cubeStrip = {
+            Vector(-1, 1, 1)*scale,   // Front-top-left
+            Vector(1, 1, 1)*scale,    // Front-top-right
+            Vector(-1, -1, 1)*scale,  // Front-bottom-left
+            Vector(1, -1, 1)*scale,   // Front-bottom-right
+            Vector(1, -1, -1)*scale,  // Back-bottom-right
+            Vector(1, 1, 1)*scale,    // Front-top-right
+            Vector(1, 1, -1)*scale,   // Back-top-right
+            Vector(-1, 1, 1)*scale,   // Front-top-left
+            Vector(-1, 1, -1)*scale,  // Back-top-left
+            Vector(-1, -1, 1)*scale,  // Front-bottom-left
+            Vector(-1, -1, -1)*scale, // Back-bottom-left
+            Vector(1, -1, -1)*scale,  // Back-bottom-right
+            Vector(-1, 1, -1)*scale,  // Back-top-left
+            Vector(1, 1, -1)*scale    // Back-top-right
+        }
+        
+        local uvSize = 64
+        
+        for idx=1, #cubeStrip do
+            local v1 = cubeStrip[idx]
+            local v2 = cubeStrip[((idx+0)%#cubeStrip)+1]
+            local v3 = cubeStrip[((idx+1)%#cubeStrip)+1]
+            local normal = math.getPolyNormal(v1, v2, v3)
+            
+            mesh.writePosition( v1 )
+                    mesh.writeUV(0, v1.x / uvSize, v1.y / uvSize)
+                    mesh.writeNormal(normal)
+                    mesh.writeColor(255, 255, 255, 255)
+                    mesh.advanceVertex()
+            --mesh.writePosition(v)
+            --mesh.writeUV(0, v.x / uvSize, v.y / uvSize)
+        end
+    end)
+    
+    net.receive("cubeEntReady", function()
+        print("Cube ready!")
+        local cubeEnt = net.readEntity()
+        print(cubeEnt)
+        cubeEnt:setMesh(cube)
+    end)
+    
+    net.start("clientReady")
+    net.send()
+end
