@@ -21,6 +21,7 @@ if SERVER then
     }}
     
     local cubeEnt = prop.createCustom(chip():getPos(), Angle(0, 0, 0), cubeHitbox, true)
+    cubeEnt:setMaterial("WTP/leather_1")
     
     net.receive("clientReady", function(len, ply)
         printConsole("Client " .. ply:getName() .. " is ready. Sending entity.")
@@ -38,10 +39,11 @@ else
     
     mesh.generate(cube, MATERIAL.TRIANGLE_STRIP, 12, function()
         function math.getPolyNormal(p1, p2, p3)
-            local e1 = p1 - p2
-            local e2 = p1 - p3
-            
-            return e2:cross(e1)
+            local U = p2 - p1
+            local V = p3 - p1
+            local cross = U:cross(V)
+            cross:normalize()
+            return cross
         end
         
         local cubeStrip = {
@@ -61,7 +63,7 @@ else
             Vector(1, 1, -1)*scale    // Back-top-right
         }
         
-        local uvSize = 64
+        local uvSize = 16
         
         for idx=1, #cubeStrip do
             local v1 = cubeStrip[idx]
