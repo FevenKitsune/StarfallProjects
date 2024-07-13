@@ -83,6 +83,36 @@ function HeightMap:getHeightData()
     return self.heightData
 end
 
+function HeightMap:min()
+    -- Compute the lowest value within the heightmap
+    local smallest = 999999999
+    
+    for x=0, self.size do
+        for y=0, self.size do
+            local value = self.heightData[x][y]
+            if type(value)=="number" and value<smallest then smallest=value end
+        end
+    end
+    
+    return smallest
+end
+
+function HeightMap:offset(z)
+    -- Offset all values within the heightmap by z.
+    for x=0, self.size do
+        for y=0, self.size do
+            self.heightData[x][y] = self.heightData[x][y] + z
+        end
+    end
+end
+
+function HeightMap:offsetByMin()
+    -- Compute the lowest point of the heightmap then offset the map suchthat the lowest point is 0.
+    local min = self:min()
+    self:offset(-min)
+    return min
+end
+
 -- default values
 local size = 3
 local scale = 10
@@ -103,6 +133,7 @@ if SERVER then
     local map = HeightMap:new(size, scale, seedA, seedB, seedC)
     if DEBUG then printConsole("Computing gradient...") end
     map:generate()
+    map:offsetByMin()
     local mapData = map:getHeightData()
     if DEBUG then printConsole(table.toString(mapData,nil,true)) end
     
@@ -124,6 +155,7 @@ else
         map = HeightMap:new(size, scale, seedA, seedB, seedC)
         if DEBUG then printConsole("Computing gradient...") end
         map:generate()
+        map:offsetByMin()
         local mapData = map:getHeightData()
         if DEBUG then printConsole(table.toString(mapData,nil,true)) end
     end
