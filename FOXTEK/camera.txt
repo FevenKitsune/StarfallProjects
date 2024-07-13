@@ -25,7 +25,7 @@ if CLIENT then
     local ENABLE_TEXTURES = true
     local ENABLE_SHADOWS = true
     local points = {}
-    local pixelsize = 8
+    local pixelsize = 4
     local camera
     local lighting
     local ambientLight = 0.04
@@ -34,7 +34,7 @@ if CLIENT then
     local cameraResolutionX, cameraResolutionY = 1024, 1024
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
-    local intensity = 60
+    local intensity = 8
     local backgroundColor = Color( 0, 0, 0 )
 
     net.receive("sendCameraEntity", function(len, ply)
@@ -131,7 +131,7 @@ if CLIENT then
                 
                 -- Calculate shadows
                 if ENABLE_SHADOWS then
-                    local shadowTrace = line(ray["HitPos"], lightPos, lighting)
+                    local shadowTrace = line(ray["HitPos"], lightPos, lighting) -- Not perfect yet, backside of surfaces seem to still be pitch black.
                     if shadowTrace["Hit"] then
                         hdrColor:vmul( Vector(ambientLight) )
                     end
