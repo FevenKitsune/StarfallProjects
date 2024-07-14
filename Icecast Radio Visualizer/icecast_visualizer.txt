@@ -65,6 +65,8 @@ if CLIENT then
     local fft_previous = {}
     local fft_smooth = {}
     local globalSound
+    local fxlight = light.create( chip():getPos() + Vector(100, 0, 65), 512, 1, Color(255, 255, 255) )
+    local fxbright = 0
     
     function playSong()
         local Sounds = {}
@@ -148,8 +150,10 @@ if CLIENT then
         if globalSound == nil or not globalSound:isValid() then return end
         
         if not quotaCheck(0.5) or not ramCheck(0.5) then return end
+        
         local saturation = 0
         local multiplier = 3
+        fxbright = fft_smooth[4] or 0
         render.setColor(Color(0, saturation, (fft_smooth[2] or 0) * multiplier):hsvToRGB()) 
         render.draw3DBox(Vector(0, 512, 0), Angle(), Vector(), Vector(512 * 2))
             
@@ -201,5 +205,10 @@ if CLIENT then
         if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
             playSong()
         end
+    end)
+    
+    hook.add("think", "renderlight", function()
+        fxlight:setSize(fxbright * 4096)
+        fxlight:draw()
     end)
 end
