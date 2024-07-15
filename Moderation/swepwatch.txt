@@ -1,0 +1,46 @@
+--@name SWEPWatch
+--@author Feven Kitsune
+--@server
+
+local function classInTable(className, entityTable)
+    local matches = {}
+    for _, v in ipairs(entityTable) do
+        if v:getClass() == className then
+            table.insert(matches, v)
+        end
+    end
+    return matches
+end
+
+local function weaponInTable(entityTable)
+    local matches = {}
+    for _, v in ipairs(entityTable) do
+        if v:isWeapon() then
+            table.insert(matches, v)
+        end
+    end
+    return matches
+end
+
+hook.add("OnEntityCreated", "SWEPWatch", function(ent)
+    if isValid(ent)
+    and isValid(ent:getOwner())
+    and ent:getClass() == "phys_spring" then
+        local constrainedSWEPs = find.all(function(e)
+            if isValid(e)
+            and isValid(e:getOwner())
+            and e:getOwner() == ent:getOwner()
+            and e:isWeapon() then
+                local cTable = e:getAllConstrained()
+                local SWEPs = weaponInTable(cTable)
+                local props = classInTable("prop_physics", cTable)
+                local world = classInTable("world", cTable)
+                if not table.isEmpty(SWEPs) and (not table.isEmpty(props) or not table.isEmpty(world)) then
+                    printConsole(e:getOwner():getName() .. " has constrained a SWEP using hydraulics!")
+                    return true
+                end
+            end
+        end)
+        --printTable(constrainedSWEPs)
+    end
+end)
