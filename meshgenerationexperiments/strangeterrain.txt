@@ -3,7 +3,7 @@
 --@server
 
 local heightMap = {}
-local gridSize = 50
+local gridSize = 40
 local scale = 10
 local amplitude = 25
 local zoom = 5
