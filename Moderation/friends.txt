@@ -1,0 +1,38 @@
+--@name Friends
+--@author Feven Kitsune
+--@shared
+
+--[[
+GOAL: Checks all relationships between players via Steam Friends.
+Rules between friends are not enforced.
+]]
+
+if SERVER then
+    net.receive("ClientReady", function(len, ply)
+        printConsole("User " .. ply:getName() .. " is ready. Requesting friends list...")
+        net.start("RequestFriendsList")
+        net.send(ply)
+    end)
+else
+    
+    net.receive("RequestFriendsList", function(len, ply)
+        local relationships = {
+            friend = {},
+            blocked = {},
+            none = {},
+            reqeusted = {}
+        }
+        local players = find.allPlayers()
+        for _, player in ipairs(players) do
+            local relationship = player:getFriendStatus() -- Callback errored with: SF:StarfallProjects/Moderation/friends.txt:27: Permission player.getFriendStatus: This function can only be used on the player's own chip
+            table.insert(relationships[relationship], player)
+        end
+        printTable(relationships)
+        net.start("ReportFriendsList")
+        net.writeTable(relationships)
+        net.send()
+    end)
+    
+    net.start("ClientReady")
+    net.send()
+end
