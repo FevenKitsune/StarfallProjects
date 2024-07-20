@@ -5,23 +5,45 @@
 -- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
 -- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
 
-local resolution = 1024
+local resolution = 2048
 local drawRoutines = {}
 local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
 
 local function drawRoutine() -- since this isn't going to be distributed for now, I don't need to worry about chunks.
     -- variables
+    -- render scale
     local x1 = 0
     local x2 = resolution-1
     local y1 = 0
     local y2 = resolution-1
+    
+    -- calculation bounds
+    -- SET ME:
+    local xPos = 0
+    local yPos = 0
+    local ZOOM = 1
+    
+    -- Compute base zoom level
     local Rmin = -2.00 -- default is -2.00
     local Rmax = 0.47 -- default is 0.47
-    local Dreal = Rmax-Rmin
-    local pixelSize = Dreal/resolution
+    local Rdelta = Rmax-Rmin
+    local Rcenter = (Rmin+Rmax)/2
     local Imin = -1.12 -- default is -1.12
     local Imax = 1.12 -- default is 1.12
-    local NMAX = 10
+    local Idelta = Imax-Imin
+    local Icenter = (Imin+Imax)/2
+    
+    -- Compute new bounds
+    local newRdelta = Rdelta/ZOOM
+    local newIdelta = Idelta/ZOOM
+    Rmin = (Rcenter-newRdelta/2)+xPos
+    Rmax = (Rcenter+newRdelta/2)+xPos
+    Rdelta = Rmax-Rmin
+    Imin  = (Icenter-newIdelta/2)+yPos
+    Imax  = (Icenter+newIdelta/2)+yPos
+
+    local pixelSize = Rdelta/resolution
+    local NMAX = 1024
 
     complex = {}
     complex.__index = complex
