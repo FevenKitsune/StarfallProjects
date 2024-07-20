@@ -5,9 +5,10 @@
 -- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
 -- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
 
-local resolution = 2048
+local resolution = 1024
 local drawRoutines = {}
 local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
+local startTime = timer.systime()
 
 local function drawRoutine() -- since this isn't going to be distributed for now, I don't need to worry about chunks.
     -- variables
@@ -19,9 +20,9 @@ local function drawRoutine() -- since this isn't going to be distributed for now
     
     -- calculation bounds
     -- SET ME:
-    local xPos = 0
-    local yPos = 0
-    local ZOOM = 1
+    local xPos = 0.6
+    local yPos = 0.657
+    local ZOOM = 1000
     
     -- Compute base zoom level
     local Rmin = -2.00 -- default is -2.00
@@ -43,7 +44,7 @@ local function drawRoutine() -- since this isn't going to be distributed for now
     Imax  = (Icenter+newIdelta/2)+yPos
 
     local pixelSize = Rdelta/resolution
-    local NMAX = 1024
+    local NMAX = 512
 
     complex = {}
     complex.__index = complex
@@ -104,12 +105,25 @@ hook.add("RenderOffscreen", "drawRoutines", function()
     render.selectRenderTarget("computeBuffer")
     if drawRoutines[#drawRoutines]() then
         table.remove(drawRoutines)
+        if player() == owner() then
+            file.createDir("renders")
+            file.write("renders/raytracer-result" .. os.date("%Y-%m-%d_%H-%M-%S") .. ".png", render.captureImage({
+                format = "png",
+                x = 0, y = 0,
+                w = resolution, h = resolution,
+                alpha = false
+            }))
+            print(string.format("Saved render! Took %d seconds.", timer.systime() - startTime))
+        end
     end
 end)
 
 hook.add("Render", "drawComputeBuffer", function()
     render.setRenderTargetTexture("computeBuffer")
     render.drawTexturedRect(0, 0, 512 / resolution * 1024, 512 / resolution * 1024)
+    local lsize = 10
+    render.drawLine(256-lsize, 256-lsize, 256+lsize, 256+lsize)
+    render.drawLine(256-lsize, 256+lsize, 256+lsize, 256-lsize)
 end)
 
 table.insert(drawRoutines, drawRoutine())
