@@ -2,7 +2,8 @@
 --@author Feven Kitsune
 --@client
 
--- Rendering workflow forked from https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
+-- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
+-- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
 
 local resolution = 1024
 local drawRoutines = {}
@@ -14,12 +15,12 @@ local function drawRoutine() -- since this isn't going to be distributed for now
     local x2 = resolution-1
     local y1 = 0
     local y2 = resolution-1
-    local Rmin = -2.00
-    local Rmax = 0.47
+    local Rmin = -2.00 -- default is -2.00
+    local Rmax = 0.47 -- default is 0.47
     local Dreal = Rmax-Rmin
     local pixelSize = Dreal/resolution
-    local Imin = -1.12
-    local Imax = 1.12
+    local Imin = -1.12 -- default is -1.12
+    local Imax = 1.12 -- default is 1.12
     local NMAX = 10
 
     complex = {}
