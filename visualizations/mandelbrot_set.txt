@@ -124,6 +124,8 @@ end
 
 hook.add("Render", "drawComputeBuffer", function()
     render.setRenderTargetTexture("computeBuffer")
+    render.setFilterMin(1)
+    render.setFilterMag(1)
     render.drawTexturedRect(0, 0, 512 / resolution * 1024, 512 / resolution * 1024)
     local lsize = 10
     render.drawLine(256-lsize, 256-lsize, 256+lsize, 256+lsize)
