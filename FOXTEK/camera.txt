@@ -35,7 +35,7 @@ if CLIENT then
     local viewportRayTargetX, viewportRayTargetY = 1, 1
     local lightColor = Vector( 1 )
     local intensity = 8
-    local backgroundColor = Color( 0, 0, 0 )
+    local backgroundColor = Color( 135, 206, 235 )
 
     net.receive("sendCameraEntity", function(len, ply)
         print("Camera found!")
@@ -147,8 +147,8 @@ if CLIENT then
                 
                 --setColor(Color(mapped[1], mapped[2], mapped[3]))
                 setRGBA(mapped[1], mapped[2], mapped[3], 255)
-            else
-                setRGBA(0, 0, 0, 255)
+            elseif ray["HitSky"] then
+                setRGBA(135, 206, 235, 255)
             end
 
             drawRectFast(viewportRayTargetX, viewportRayTargetY, pixelsize, pixelsize)
