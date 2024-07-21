@@ -1,0 +1,31 @@
+--@name Facecam
+--@author FOXTEK (Feven Kitsune)
+--@client
+--@owneronly
+
+render.createRenderTarget("drawBuffer")
+
+local function renderscene()
+    render.selectRenderTarget("drawBuffer")
+    local camera = {
+        origin = owner():getEyePos() + owner():getEyeAngles():getForward() * 80,
+        angles = owner():getEyeAngles() * Angle(-1, 1, -1) + Angle(0, 180, 0),
+        x = 0, y = 0,
+        w = 512, h = 512,
+        drawviewmodel = false,
+        viewid = 2,
+        fov=35
+    }
+    render.renderView(camera)
+end
+    
+local function renderhook()
+    render.selectRenderTarget()
+    render.setRenderTargetTexture("drawBuffer")
+    render.drawTexturedRect(0, 0, 512, 512)
+end
+    
+hook.add("renderscene", "rendercamera", renderscene)
+hook.add("drawhud", "rendertarget", renderhook)
+
+enableHud(player(), true)
