@@ -5,7 +5,7 @@
 -- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
 -- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
 
-local resolution = 128
+local resolution = 256
 local drawRoutines = {}
 local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
 local startTime = timer.systime()
@@ -118,10 +118,6 @@ hook.add("RenderOffscreen", "drawRoutines", function()
     end
 end)
 
-for x = 1, 50, 0.5 do
-    table.insert(drawRoutines, drawRoutine(x))
-end
-
 hook.add("Render", "drawComputeBuffer", function()
     render.setRenderTargetTexture("computeBuffer")
     render.setFilterMin(1)
@@ -131,3 +127,5 @@ hook.add("Render", "drawComputeBuffer", function()
     render.drawLine(256-lsize, 256-lsize, 256+lsize, 256+lsize)
     render.drawLine(256-lsize, 256+lsize, 256+lsize, 256-lsize)
 end)
+
+table.insert(drawRoutines, drawRoutine(6))
