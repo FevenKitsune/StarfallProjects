@@ -150,7 +150,7 @@ if CLIENT then
         if globalSound == nil or not globalSound:isValid() then return end
         
         if not quotaCheck(0.5) or not ramCheck(0.5) then return end
-        
+        render.enableDepth(true)
         local saturation = 0
         local multiplier = 3
         fxbright = fft_smooth[4] or 0
