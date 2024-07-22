@@ -79,18 +79,12 @@ if CLIENT then
             net.receive("changeVol",function()
                 Volume = net.readFloat()
             end)
-                
---[[
-            hook.add("Think", "", function()
+
+            hook.add("Think", "ManageVolume", function()
                 if snd == nil or not snd:isValid() then return end
                 snd:setPos(chip():getPos())          
-                if player():getPos():getDistance(chip():getPos()) > 6500 then
-                    snd:setVolume(0)
-                else
-                    snd:setVolume(Volume)
-                end                             
+                snd:setVolume(Volume)
             end)
-]]
 
             snd:play()
             table.insert(Sounds,snd)
