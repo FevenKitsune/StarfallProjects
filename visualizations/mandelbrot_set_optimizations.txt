@@ -1,0 +1,119 @@
+--@name Mandelbrot Set v2
+--@author Feven Kitsune
+--@client
+
+-- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
+-- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
+
+-- SETTINGS
+local resolution = 1024
+local NMAX = 32
+local ZOOM = 1
+local xPos = 0
+local yPos = 0
+
+-- Initialization
+local drawRoutines = {}
+local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
+local startTime = timer.systime()
+
+local function drawRoutine(zoom) -- since this isn't going to be distributed for now, I don't need to worry about chunks.
+    -- variables
+    -- render scale
+    local x1 = 0
+    local x2 = resolution-1
+    local y1 = 0
+    local y2 = resolution-1
+    
+    local ZOOM = 2^zoom
+    
+    -- Compute base zoom level
+    local Rmin = -2.00 -- default is -2.00
+    local Rmax = 0.47 -- default is 0.47
+    local Rdelta = Rmax-Rmin
+    local Rcenter = (Rmin+Rmax)/2
+    local Imin = -1.12 -- default is -1.12
+    local Imax = 1.12 -- default is 1.12
+    local Idelta = Imax-Imin
+    local Icenter = (Imin+Imax)/2
+    
+    -- Compute new bounds
+    local newRdelta = Rdelta/ZOOM
+    local newIdelta = Idelta/ZOOM
+    Rmin = (Rcenter-newRdelta/2)+xPos
+    Rmax = (Rcenter+newRdelta/2)+xPos
+    Rdelta = Rmax-Rmin
+    Imin  = (Icenter-newIdelta/2)+yPos
+    Imax  = (Icenter+newIdelta/2)+yPos
+
+    local pixelSize = Rdelta/resolution
+
+    return coroutine.wrap(function()
+        -- function localizations
+        local table_insert = table.insert
+        local render_setRGBA = render.setRGBA
+        local coroutine_yield = coroutine.yield
+        local render_drawRectFast = render.drawRectFast
+        local cpu_average = cpuAverage
+        
+        print("Computing...")
+        
+        for y = y1, y2 do
+            for x = x1, x2 do
+                local Zr = 0
+                local Zi = 0
+                local Cr = Rmin+(x*pixelSize)
+                local Ci = Imax-(y*pixelSize)
+                
+                if cpu_average() > maxCPU then coroutine_yield() end
+                local n=0
+                while n<NMAX do
+                    n=n+1
+                    if (Zr^2+Zi^2) > 4 then break end
+                    local Zrt = Zr
+                    Zr=(Zr^2-Zi^2)+Cr
+                    Zi=(Zrt*Zi+Zi*Zrt)+Ci
+                end
+                -- Bernstein polynomials for coloring
+                local t = n/NMAX
+                local r = 9*(1-t)*t^3*255
+                local g = 15*(1-t)^2*t^2*255
+                local b = 8.5*(1-t)^3*t*255
+                render_setRGBA(r, g, b)
+                render_drawRectFast(x, y, 1, 1)
+            end
+        end
+        return true
+    end)
+end
+
+render.createRenderTarget("computeBuffer")
+hook.add("RenderOffscreen", "drawRoutines", function()
+    if cpuAverage() > maxCPU or #drawRoutines == 0 then return end
+    render.selectRenderTarget("computeBuffer")
+    if drawRoutines[#drawRoutines]() then
+        table.remove(drawRoutines)
+        if player() == owner() then
+            file.createDir("renders")
+            file.write("renders/fractal" .. os.date("%Y-%m-%d_%H-%M-%S") .. ".png", render.captureImage({
+                format = "png",
+                x = 0, y = 0,
+                w = resolution, h = resolution,
+                alpha = false
+            }))
+            print(string.format("Saved render! Took %f seconds.", timer.systime() - startTime))
+        end
+    end
+end)
+
+hook.add("Render", "drawComputeBuffer", function()
+    render.setRenderTargetTexture("computeBuffer")
+    render.setFilterMin(1)
+    render.setFilterMag(1)
+    render.drawTexturedRect(0, 0, 512 / resolution * 1024, 512 / resolution * 1024)
+    local lsize = 10
+    render.drawLine(256-lsize, 256-lsize, 256+lsize, 256+lsize)
+    render.drawLine(256-lsize, 256+lsize, 256+lsize, 256-lsize)
+end)
+
+table.insert(drawRoutines, drawRoutine(ZOOM))
