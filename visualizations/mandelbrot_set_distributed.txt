@@ -1,0 +1,379 @@
+--@name Mandelbrot Set Distributed
+--@author Feven Kitsune
+--@shared
+
+-- Tiled rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
+-- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
+
+local computeStack = {}
+local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
+local resolution = 256
+
+local startTime = timer.systime()
+local xPos = 0
+local yPos = 0
+local zoom = 1
+local NMAX = 2048
+
+-- Chunk size
+local chunkCount = 8
+local chunkSize = resolution / chunkCount
+local chunkBits = 2 * math.log(chunkCount, 2)
+
+local totalChunks = chunkCount^2
+
+assert(chunkBits <= 32, "Chunk count exceeds maximum bit count.")
+
+-- TODO:
+-- Rewrite serverside code from scratch. This isn't really working.
+
+if SERVER then
+    local neededChunks = {}
+    local renderedChunks = {}
+    local playerChunks = {}
+    
+    for i = 0, totalChunks - 1 do
+        table.insert(neededChunks, i)
+    end
+    
+    -- Player keepalive
+    local heartbeats = {}
+    net.receive("Heartbeat", function(_, ply)
+        heartbeats[ply] = true
+    end)
+    
+    timer.create("Heartbeat", 5, 0, function()
+        local alivePlayers = {}
+        for ply, alive in pairs(heartbeats) do
+            if alive then
+                heartbeats[ply] = false
+                if ply:isValid() then
+                    table.insert(alivePlayers, ply)
+                end
+            else
+                -- Heartbeat died
+                heartbeats[ply] = nil
+    
+                -- Add chunks back into the pool
+                if playerChunks[ply] then
+                    for id in pairs(playerChunks[ply]) do
+                        table.insert(neededChunks, id)
+                    end
+                    playerChunks[ply] = nil
+                end
+            end
+        end
+    
+        if #alivePlayers > 0 then
+            net.start("Heartbeat")
+            net.send(alivePlayers)
+        end
+    end)
+    
+    -- Send finished chunks to new players
+    local chunkUpdates = {}
+    hook.add("Think", "chunkUpdates", function()
+        local ply, chunks = next(chunkUpdates)
+        if not ply then return end
+        if not ply:isValid() or #chunks == 0 then
+            chunkUpdates[ply] = nil
+            return
+        end
+    
+        local set = chunks[#chunks]
+        local str = set[2]
+        if net.getBytesLeft() > #str + 1024 then
+            table.remove(chunks)
+    
+            net.start("ChunkRelay")
+            net.writeUInt(set[1], chunkBits)
+            net.writeUInt(#str, 32)
+            net.writeData(str, #str)
+            net.send(ply)
+        end
+    end)
+    
+    local function assignPlayerChunk(ply)
+        if #neededChunks == 0 then return end
+        local chunkId = table.remove(neededChunks, math.random(1, #neededChunks))
+        printConsole("Requesting chunk " .. tostring(chunkId) .. " from " .. ply:getName())
+        net.start("RequestCompute")
+        net.writeUInt(chunkId, chunkBits)
+        net.send(ply)
+    
+        playerChunks[ply][chunkId] = true
+    end
+    
+    net.receive("ClientReady", function(_, ply)
+    
+        if not playerChunks[ply] then
+            playerChunks[ply] = {}
+    
+            assignPlayerChunk(ply)
+            assignPlayerChunk(ply)
+        else
+            -- Request previously assigned chunks
+            for id in pairs(playerChunks[ply]) do
+                net.start("RequestCompute")
+                net.writeUInt(id, chunkBits)
+                net.send(ply)
+            end
+        end
+    
+        local chunks = {}
+        for id, chunk in pairs(renderedChunks) do
+            table.insert(chunks, {id, chunk})
+        end
+        chunkUpdates[ply] = chunks
+    
+        heartbeats[ply] = true
+    end)
+    
+    -- Chunk Relaying
+    local chunkRelayStack = {}
+    hook.add("Think", "chunkRelayStack", function()
+        if #chunkRelayStack == 0 then return end
+        local nextMessage = chunkRelayStack[#chunkRelayStack]
+        local str = nextMessage[2]
+        if net.getBytesLeft() > #str + 1024 then
+            table.remove(chunkRelayStack)
+    
+            local omit = nextMessage[3]
+            local sendTable = find.allPlayers(function(p) return p ~= omit end)
+    
+            if #sendTable == 0 then return end
+    
+            net.start("ChunkRelay")
+            net.writeUInt(nextMessage[1], chunkBits)
+            net.writeUInt(#str, 32)
+            net.writeData(str, #str)
+            net.send(sendTable)
+        end
+    end)
+    
+    local function relayChunk(ply, id, str)
+        renderedChunks[id] = str
+    
+        table.insert(chunkRelayStack, {id, str, ply})
+    end
+    
+    net.receive("ChunkRelay", function(_, ply)
+        local id = net.readUInt(chunkBits)
+        printConsole("Recieved chunk " .. tostring(id) .. " from " .. ply:getName())
+        if not (playerChunks[ply] and playerChunks[ply][id]) then return end
+        playerChunks[ply][id] = nil
+        assignPlayerChunk(ply)
+    
+        relayChunk(ply, id, net.readData(net.readUInt(32)))
+    end)
+    
+    -- Screen Spawning
+    local ent = prop.createComponent(
+        chip():getPos() + chip():getUp() * 50,
+        Angle(90, math.round((chip():getPos() - owner():getPos()):getAngle()[2] / 15) * 15, 180),
+        "starfall_screen",
+        "models/hunter/plates/plate2x2.mdl",
+        true
+    )
+    ent:linkComponent(chip())
+    ent:setParent(chip())
+else
+    local chunksRendered = 0
+    local drawStack = {}
+    local colorWhite = Color(255, 255, 255)
+    
+    
+    local chunkRelayStack = {}
+    hook.add("Think", "chunkRelayStack", function()
+        if #chunkRelayStack == 0 then return end
+        local nextMessage = chunkRelayStack[#chunkRelayStack]
+    
+        local str = nextMessage[2]
+        if net.getBytesLeft() > #str + 1024 then
+            table.remove(chunkRelayStack)
+    
+            net.start("ChunkRelay")
+            net.writeUInt(nextMessage[1], chunkBits)
+            net.writeUInt(#str, 32)
+            net.writeData(str, #str)
+            net.send()
+        end
+    end)
+    
+    -- Render chunks from the screen render stack.
+    local function chunkDrawRoutine(id, ss)
+        local x = id % chunkCount
+        local y = math.floor(id / chunkCount)
+    
+        local x1 = x * chunkSize
+        local x2 = x1 + chunkSize - 1
+        local y1 = y * chunkSize
+        local y2 = y1 + chunkSize - 1
+    
+        return coroutine.wrap(function()
+            render.setColor(colorWhite)
+            render.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1)
+    
+            for y = y1, y2 do
+                for x = x1, x2 do
+                    if cpuAverage() > maxCPU then coroutine.yield() end
+                    render.setRGBA(ss:readUInt8(), ss:readUInt8(), ss:readUInt8())
+                    render.drawRect(x, y, 1, 1)
+                end
+            end
+    
+            chunksRendered = chunksRendered + 1
+    
+            return true
+        end)
+    end
+    
+    -- Calls the chunk draw stack. Removes once render is complete.
+    render.createRenderTarget("drawBuffer")
+    hook.add("RenderOffscreen", "drawRoutines", function()
+        if cpuAverage() > maxCPU or #drawStack == 0 then return end
+    
+        render.selectRenderTarget("drawBuffer")
+        if drawStack[#drawStack]() then
+            table.remove(drawStack)
+            if chunksRendered == totalChunks and player() == owner() then
+                file.createDir("renders")
+                file.write("renders/fractal" .. os.date("%Y-%m-%d_%H-%M-%S") .. ".png", render.captureImage({
+                    format = "png",
+                    x = 0, y = 0,
+                    w = resolution, h = resolution,
+                    alpha = false
+                }))
+                print(string.format("Saved render! Took %d seconds.", timer.systime() - startTime))
+            end
+        end
+    end) 
+    
+    hook.add("Render", "renderDrawBuffer", function()
+        render.setFilterMin(1)
+        render.setFilterMag(1)
+        render.setRenderTargetTexture("drawBuffer")
+        render.drawTexturedRect(0, 0, 512 / resolution * 1024, 512 / resolution * 1024)
+    end)
+    
+    -- Primary compute coroutine. Computes chunk based on given ID.
+    local function clComputeChunk(id)
+        local max = math.max
+        local x = id % chunkCount
+        local y = math.floor(id / chunkCount)
+
+        local x1 = x * chunkSize
+        local x2 = x1 + chunkSize - 1
+        local y1 = y * chunkSize
+        local y2 = y1 + chunkSize - 1
+        
+        local ss = bit.stringstream()
+        
+        -- calculation bounds
+        -- SET ME:
+        local ZOOM = 2^zoom
+        
+        -- Compute base zoom level
+        local Rmin = -2.00 -- default is -2.00
+        local Rmax = 0.47 -- default is 0.47
+        local Rdelta = Rmax-Rmin
+        local Rcenter = (Rmin+Rmax)/2
+        local Imin = -1.12 -- default is -1.12
+        local Imax = 1.12 -- default is 1.12
+        local Idelta = Imax-Imin
+        local Icenter = (Imin+Imax)/2
+        
+        -- Compute new bounds
+        local newRdelta = Rdelta/ZOOM
+        local newIdelta = Idelta/ZOOM
+        Rmin = (Rcenter-newRdelta/2)+xPos
+        Rmax = (Rcenter+newRdelta/2)+xPos
+        Rdelta = Rmax-Rmin
+        Imin  = (Icenter-newIdelta/2)+yPos
+        Imax  = (Icenter+newIdelta/2)+yPos
+    
+        local pixelSize = Rdelta/resolution
+    
+        complex = {}
+        complex.__index = complex
+        
+        function complex.new(r, i) return setmetatable({r=r or 0, i=i or 0}, complex) end
+        function complex:__add(rhs) return complex.new(self.r + rhs.r, self.i + rhs.i) end
+        function complex:__mul(rhs)
+            return complex.new(
+                self.r*rhs.r-self.i*rhs.i, 
+                self.r*rhs.i+self.i*rhs.r
+            )
+        end
+        function complex:sqrThenAddInPlace(rhs)
+            local rl = self.r
+            self.r = (self.r*self.r-self.i*self.i)+rhs.r
+            self.i = (rl*self.i+self.i*rl)+rhs.i
+            return
+        end
+        function complex:abs() return math.sqrt(self.r^2 + self.i^2) end
+        function complex:__tostring()
+            if self.i >= 0 then
+                return string.format("%g+%gi", self.r, self.i)
+            else
+                return string.format("%g%gi", self.r, self.i)
+            end
+        end
+        
+        return coroutine.wrap(function()
+            for y = y1, y2 do
+                for x = x1, x2 do
+                    local C = complex.new(Rmin+(x*pixelSize),Imax-(y*pixelSize))
+                    local z = complex.new(0, 0)
+                    
+                    local n=0
+                    while n<NMAX do
+                        n=n+1
+                        if cpuAverage() > maxCPU then coroutine.yield() end
+                        if z:abs() > 2 then break end
+                        z:sqrThenAddInPlace(C)
+                    end
+                    -- Bernstein polynomials for coloring
+                    local t = n/NMAX
+                    local r = 9*(1-t)*t^3*255
+                    local g = 15*(1-t)^2*t^2*255
+                    local b = 8.5*(1-t)^3*t*255
+                    ss:writeUInt8(max(r, 0))
+                    ss:writeUInt8(max(g, 0))
+                    ss:writeUInt8(max(b, 0))
+                end
+            end
+            
+            ss:seek(1)
+            -- Compute complete, push new chunk to the screen render stack.
+            table.insert(drawStack, chunkDrawRoutine(id, ss))
+            -- Compute complete, push new chunk to the outgoing netstream.
+            table.insert(chunkRelayStack, {id, bit.compress(ss:getString())})
+            return true
+        end)
+    end
+    
+    -- Calls the compute stack, then removes it from the stack once it's complete.
+    hook.add("Think", "computeStack", function()
+        if cpuAverage() > maxCPU or #computeStack == 0 then return end
+        if computeStack[#computeStack]() then
+            -- Removes the last element [#computeStack] from the table.
+            table.remove(computeStack)
+        end
+    end)
+    
+    -- Server has requested chunkID net.readUInt(), add this to the compute stack.
+    net.receive("RequestCompute", function()
+        local chunkID = net.readUInt(chunkBits)
+        printConsole("Server has requested chunk " .. tostring(chunkID))
+        table.insert(computeStack, clComputeChunk(chunkID))
+    end)
+    
+    net.receive("Heartbeat", function()
+        net.start("Heartbeat")
+        net.send()
+    end)
+
+    net.start("ClientReady")
+    net.send()
+end
