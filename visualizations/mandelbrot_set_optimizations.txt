@@ -7,10 +7,10 @@
 
 -- SETTINGS
 local resolution = 1024
-local NMAX = 32
+local NMAX = 512
 local ZOOM = 1
-local xPos = 0
-local yPos = 0
+local xPos = 0.601000000001
+local yPos = 0.657000024870588
 
 -- Initialization
 local drawRoutines = {}
@@ -56,7 +56,7 @@ local function drawRoutine(zoom) -- since this isn't going to be distributed for
         local render_drawRectFast = render.drawRectFast
         local cpu_average = cpuAverage
         
-        print("Computing...")
+        printConsole("Computing zoom level " .. tostring(zoom))
         
         for y = y1, y2 do
             for x = x1, x2 do
@@ -101,7 +101,7 @@ hook.add("RenderOffscreen", "drawRoutines", function()
                 w = resolution, h = resolution,
                 alpha = false
             }))
-            print(string.format("Saved render! Took %f seconds.", timer.systime() - startTime))
+            printConsole(string.format("Saved render! Took %f seconds.", timer.systime() - startTime))
         end
     end
 end)
@@ -116,4 +116,8 @@ hook.add("Render", "drawComputeBuffer", function()
     render.drawLine(256-lsize, 256+lsize, 256+lsize, 256-lsize)
 end)
 
-table.insert(drawRoutines, drawRoutine(ZOOM))
+if player():getPos():getDistance(chip():getPos()) < 1000 then
+    for x = 54, 1, -1 do
+        table.insert(drawRoutines, drawRoutine(x))
+    end
+end
