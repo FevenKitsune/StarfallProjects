@@ -2,7 +2,7 @@
 --@author Feven Kitsune
 --@client
 
-local maxCPU = cpuMax() * (SERVER and 0.001 or 0.001)
+local maxCPU = cpuMax() * (SERVER and 0.7 or 0.7)
 
 local Laser = class("Laser")
 function Laser:initialize(startPos, endPos)
@@ -46,7 +46,7 @@ local function getComputeWorker(startPosition, startDirection)
     return coroutine.wrap(function()
         for i = 1, c do
             if cpuAverage() > maxCPU then coroutine.yield() end
-            local ray = trace.line(position, position + (direction * traceDistance), nil, MASK.NPCWORLDSTATIC)
+            local ray = trace.line(position, position + (direction * traceDistance), chip(), MASK.SOLID, COLLISION_GROUP.PASSABLE_DOOR) --MASK.NPCWORLDSTATIC
             local inDirection = ray["HitPos"] - position
             inDirection:normalize()
             local outDirection = inDirection-Vector(2)*ray["HitNormal"]*Vector(inDirection:dot(ray["HitNormal"]))
