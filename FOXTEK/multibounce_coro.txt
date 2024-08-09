@@ -1,0 +1,78 @@
+--@name Multibounce Coro
+--@author Feven Kitsune
+--@client
+
+local maxCPU = cpuMax() * (SERVER and 0.001 or 0.001)
+
+local Laser = class("Laser")
+function Laser:initialize(startPos, endPos)
+    self.startPos = startPos
+    self.endPos = endPos
+    
+    self.xSize = 0.05
+    self.ySize = 0.05
+    
+    self.Line = holograms.create( chip():getPos(), Angle(), "models/holograms/cube.mdl", Vector(1, self.xSize, self.ySize) )
+    self.CubeSize = self.Line:obbSize()[2]
+    self.Line:suppressEngineLighting(true)
+end
+
+function Laser:think()
+    local rayMidPoint = (self.startPos + self.endPos) / 2
+    self.Line:setPos( rayMidPoint )
+    self.Line:setAngles( (self.endPos - self.startPos):getAngle() )
+    self.Line:setScale( Vector( (self.endPos - self.startPos):getLength() / self.CubeSize, self.xSize, self.ySize ) )
+end
+
+function Laser:setEndPos(v) self.endPos = v end
+function Laser:setStartPos(v) self.startPos = v end
+function Laser:updatePos(s, e)
+    self.startPos = s
+    self.endPos = e
+end
+
+local traceDistance = 1024
+
+lasers = {}
+local c = 200
+local workStack = {}
+
+-- Compute the next bounce ray based on input position and normal vectors.
+
+local function getComputeWorker(startPosition, startDirection)
+    local position = startPosition
+    local direction = startDirection
+    
+    return coroutine.wrap(function()
+        for i = 1, c do
+            if cpuAverage() > maxCPU then coroutine.yield() end
+            local ray = trace.line(position, position + (direction * traceDistance), nil, MASK.NPCWORLDSTATIC)
+            local inDirection = ray["HitPos"] - position
+            inDirection:normalize()
+            local outDirection = inDirection-Vector(2)*ray["HitNormal"]*Vector(inDirection:dot(ray["HitNormal"]))
+            lasers[i]:updatePos(position, ray["HitPos"])
+            lasers[i].Line:setColor(Color(i, 0, 0))
+            lasers[i]:think()
+            position = ray["HitPos"]
+            direction = outDirection
+        end
+        return true
+    end)
+end
+
+local workStack = {}
+
+for i = 1, c do
+    lasers[i] = Laser:new(Vector(0), Vector(0))
+end
+
+hook.add("tick", "update_laser", function()
+    if cpuAverage() > maxCPU then return end
+    if #workStack == 0 then
+        table.insert(workStack, getComputeWorker(chip():getPos() + chip():getUp()*10, chip():getUp()))
+        return
+    end
+    if workStack[#workStack]() then
+        table.remove(workStack)
+    end
+end)
