@@ -35,10 +35,10 @@ if SERVER then
         
         local HealthDamage = (amount - SuitDamage)
         
-        print(type)
-        print("Suit damage: " .. SuitDamage)
-        print("Rollover damage: " .. RollOverDamage)
-        print("Health damage: " .. HealthDamage)
+        --print(type)
+        --print("Suit damage: " .. SuitDamage)
+        --print("Rollover damage: " .. RollOverDamage)
+        --print("Health damage: " .. HealthDamage)
         
         
         if RollOverDamage == 0 then
