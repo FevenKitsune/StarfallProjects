@@ -5,7 +5,7 @@
 -- Rendering workflow forked from: https://github.com/anormaltwig/public-starfallex-code/blob/main/scripts/pathtracer.txt
 -- Algorithm details: https://theses.liacs.nl/pdf/2018-2019-JonckheereLSde.pdf
 
-local resolution = 256
+local resolution = 64
 local drawRoutines = {}
 local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
 local startTime = timer.systime()
@@ -20,8 +20,8 @@ local function drawRoutine(zoom) -- since this isn't going to be distributed for
     
     -- calculation bounds
     -- SET ME:
-    local xPos = 0.601000000001
-    local yPos = 0.657000024870588
+    local xPos = 0
+    local yPos = 0
     local ZOOM = 2^zoom
     
     -- Compute base zoom level
@@ -44,7 +44,7 @@ local function drawRoutine(zoom) -- since this isn't going to be distributed for
     Imax  = (Icenter+newIdelta/2)+yPos
 
     local pixelSize = Rdelta/resolution
-    local NMAX = 2048
+    local NMAX = 128
 
     complex = {}
     complex.__index = complex
@@ -113,7 +113,7 @@ hook.add("RenderOffscreen", "drawRoutines", function()
                 w = resolution, h = resolution,
                 alpha = false
             }))
-            print(string.format("Saved render! Took %d seconds.", timer.systime() - startTime))
+            print(string.format("Saved render! Took %f seconds.", timer.systime() - startTime))
         end
     end
 end)
@@ -128,4 +128,4 @@ hook.add("Render", "drawComputeBuffer", function()
     render.drawLine(256-lsize, 256+lsize, 256+lsize, 256-lsize)
 end)
 
-table.insert(drawRoutines, drawRoutine(6))
+table.insert(drawRoutines, drawRoutine(1))
