@@ -32,8 +32,9 @@ if CLIENT then
             origin = camera:getPos() + (camera:getForward() * 25),
             angles = camera:getAngles(),
             x = 0, y = 0,
-            w = 1024, h = 1024,
-            drawviewmodel = false,
+            w = 512, h = 512,
+            drawmonitors = true,
+            drawviewmodel = false
         }
         render.renderView(rvSettings)
     end
