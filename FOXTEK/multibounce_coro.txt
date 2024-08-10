@@ -2,6 +2,9 @@
 --@author Feven Kitsune
 --@client
 
+local BOUNCE_ONLY_ON_VALID_MATERIAL = true
+local VALID_MATERIAL = "WTP/paint_2"
+
 local maxCPU = cpuMax() * (SERVER and 0.7 or 0.7)
 
 local Laser = class("Laser")
@@ -55,6 +58,13 @@ local function getComputeWorker(startPosition, startDirection)
             lasers[i]:think()
             position = ray["HitPos"]
             direction = outDirection
+            if BOUNCE_ONLY_ON_VALID_MATERIAL then 
+                if isValid(ray["Entity"]) == false or ray["Entity"]:getMaterial() ~= VALID_MATERIAL then
+                    position = chip():getPos()
+                    direction = Vector(0)
+                    --break
+                end
+            end
         end
         return true
     end)
