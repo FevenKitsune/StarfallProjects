@@ -95,6 +95,7 @@ hook.add("tick", "update_laser", function()
 end)
 
 local function rayIntersectsTriangle(ray_origin, ray_vector, vertexA, vertexB, vertexC)
+    -- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
     local epsilon = 0.0001
     local edge1 = vertexB - vertexA
     local edge2 = vertexC - vertexA
@@ -130,6 +131,8 @@ local function rayIntersectsTriangle(ray_origin, ray_vector, vertexA, vertexB, v
 end
 
 local function computeBarycentric(point, vertexA, vertexB, vertexC)
+    -- ChatGPT'd
+    -- https://en.wikipedia.org/wiki/Barycentric_coordinate_system
     local edge1 = vertexB - vertexA
     local edge2 = vertexC - vertexA
     local edgeP = point - vertexA
@@ -164,6 +167,8 @@ local l3 = Laser:new(Vector(0), Vector(0))
 local bounce = Laser:new(Vector(0), Vector(0))
 
 timer.create("SurfaceInfo", 0.05, 0, function()
+    -- https://en.wikipedia.org/wiki/Gouraud_shading
+    -- https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/shading-normals.html
     if not isValid(targetEnt) then return end
     local physTargetEnt = targetEnt:getPhysicsObject()
     local physMesh = physTargetEnt:getMesh()
