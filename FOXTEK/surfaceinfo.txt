@@ -1,0 +1,221 @@
+--@name SurfaceInfo
+--@author Feven Kitsune
+--@server
+
+local BOUNCE_ONLY_ON_VALID_MATERIAL = false
+local VALID_MATERIAL = "WTP/paint_2"
+
+local maxCPU = cpuMax() * (SERVER and 0.5 or 0.5)
+local Laser = class("Laser")
+function Laser:initialize(startPos, endPos)
+    self.startPos = startPos
+    self.endPos = endPos
+    
+    self.xSize = 0.05
+    self.ySize = 0.05
+    
+    self.Line = holograms.create( chip():getPos(), Angle(), "models/holograms/cube.mdl", Vector(1, self.xSize, self.ySize) )
+    self.CubeSize = self.Line:obbSize()[2]
+    self.Line:suppressEngineLighting(true)
+end
+
+function Laser:think()
+    local rayMidPoint = (self.startPos + self.endPos) / 2
+    self.Line:setPos( rayMidPoint )
+    self.Line:setAngles( (self.endPos - self.startPos):getAngle() )
+    self.Line:setScale( Vector( (self.endPos - self.startPos):getLength() / self.CubeSize, self.xSize, self.ySize ) )
+end
+
+function Laser:setEndPos(v) self.endPos = v end
+function Laser:setStartPos(v) self.startPos = v end
+function Laser:updatePos(s, e)
+    self.startPos = s
+    self.endPos = e
+end
+
+local traceDistance = 1024
+
+lasers = {}
+local c = 1
+local workStack = {}
+local targetEnt = nil
+local targetPos = Vector()
+local rayOrigin = Vector()
+local rayDirection = Vector()
+
+-- Compute the next bounce ray based on input position and normal vectors.
+
+local function getComputeWorker(startPosition, startDirection)
+    local position = startPosition
+    local direction = startDirection
+    
+    return coroutine.wrap(function()
+        for i = 1, c do
+            if cpuAverage() > maxCPU then coroutine.yield() end
+            local ray = trace.line(position, position + (direction * traceDistance), chip(), MASK.SOLID, COLLISION_GROUP.PASSABLE_DOOR) --MASK.NPCWORLDSTATIC
+            local outDirection = ray["Normal"]-Vector(2)*ray["HitNormal"]*Vector(ray["Normal"]:dot(ray["HitNormal"]))
+            lasers[i]:updatePos(position, ray["HitPos"])
+            lasers[i].Line:setColor(Color(255, 0, 0))
+            lasers[i]:think()
+            position = ray["HitPos"]
+            direction = outDirection
+            if BOUNCE_ONLY_ON_VALID_MATERIAL then 
+                if isValid(ray["Entity"]) == false or ray["Entity"]:getMaterial() ~= VALID_MATERIAL then
+                    position = chip():getPos()
+                    direction = Vector(0)
+                    --break
+                end
+            end
+            if isValid(ray["Entity"]) and ray["Entity"]:isValidPhys() then
+                targetEnt = ray["Entity"]
+                targetPos = ray["HitPos"]
+                rayOrigin = ray["StartPos"]
+                rayDirection = ray["Normal"]
+            end
+        end
+        return true
+    end)
+end
+
+local workStack = {}
+
+for i = 1, c do
+    lasers[i] = Laser:new(Vector(0), Vector(0))
+end
+
+hook.add("tick", "update_laser", function()
+    if cpuAverage() > maxCPU then return end
+    if #workStack == 0 then
+        table.insert(workStack, getComputeWorker(chip():getPos() + chip():getUp()*10, chip():getUp()))
+        return
+    end
+    if workStack[#workStack]() then
+        table.remove(workStack)
+    end
+end)
+
+local function rayIntersectsTriangle(ray_origin, ray_vector, vertexA, vertexB, vertexC)
+    local epsilon = 0.0001
+    local edge1 = vertexB - vertexA
+    local edge2 = vertexC - vertexA
+    local ray_cross_e2 = ray_vector:cross(edge2)
+    local det = edge1:dot(ray_cross_e2)
+    
+    if det > -epsilon and det < epsilon then
+        return nil
+    end
+    
+    local inv_det = 1 / det
+    local s = ray_origin - vertexA
+    local u = inv_det * s:dot(ray_cross_e2)
+    
+    if u < 0 or u > 1 then
+        return nil
+    end
+    
+    local s_cross_e1 = s:cross(edge1)
+    local v = inv_det * ray_vector:dot(s_cross_e1)
+    
+    if v < 0 or u + v > 1 then
+        return nil
+    end
+    
+    local t = inv_det * edge2:dot(s_cross_e1)
+    
+    if t > epsilon then
+        return ray_origin + ray_vector * t
+    else
+        return nil
+    end
+end
+
+local function computeBarycentric(point, vertexA, vertexB, vertexC)
+    local edge1 = vertexB - vertexA
+    local edge2 = vertexC - vertexA
+    local edgeP = point - vertexA
+    
+    local d00 = edge1:dot(edge1)
+    local d01 = edge1:dot(edge2)
+    local d11 = edge2:dot(edge2)
+    local d20 = edgeP:dot(edge1)
+    local d21 = edgeP:dot(edge2)
+    
+    local denom = d00 * d11 - d01 * d01
+    local v = (d11 * d20 - d01 * d21) / denom
+    local w = (d00 * d21 - d01 * d20) / denom
+    local u = 1 - v - w
+
+    return Vector(u, v, w)
+end
+
+local p1 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+p1:setColor(Color(255, 0, 0))
+p1:suppressEngineLighting(true)
+local l1 = Laser:new(Vector(0), Vector(0))
+local p2 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+p2:setColor(Color(0, 255, 0))
+p2:suppressEngineLighting(true)
+local l2 = Laser:new(Vector(0), Vector(0))
+local p3 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+p3:setColor(Color(0, 0, 255))
+p3:suppressEngineLighting(true)
+local l3 = Laser:new(Vector(0), Vector(0))
+
+local bounce = Laser:new(Vector(0), Vector(0))
+
+timer.create("SurfaceInfo", 0.05, 0, function()
+    if not isValid(targetEnt) then return end
+    local physTargetEnt = targetEnt:getPhysicsObject()
+    local physMesh = physTargetEnt:getMesh()
+    mesh.generateNormals(physMesh, nil, 0.523599)
+    
+    local intersections = {}
+    local closest = {vecA = Vector(), vecB = Vector(), vecC = Vector(), intersection = Vector(), normal = Vector(), distance = 999999999}
+    for i = 1, #physMesh, 3 do
+        local vecA = physTargetEnt:localToWorld(physMesh[i].pos)
+        local vecB = physTargetEnt:localToWorld(physMesh[i+1].pos)
+        local vecC = physTargetEnt:localToWorld(physMesh[i+2].pos)
+        local intersects = rayIntersectsTriangle(rayOrigin, rayDirection, vecA, vecB, vecC)
+        if intersects then
+            local center = (vecA + vecB + vecC) / 3
+            local sqrDist = center:getDistanceSqr(rayOrigin)
+            local barycentric = computeBarycentric(intersects, vecA, vecB, vecC)
+            local interpNormal = barycentric.x * physMesh[i].normal + barycentric.y * physMesh[i+1].normal + barycentric.z * physMesh[i+2].normal
+            interpNormal:normalize()
+            --printConsole(intersects)
+            table.insert(intersections, {vecA, vecB, vecC, center, sqrDist, barycentric, interpNormal})
+            if sqrDist < closest.distance then
+                closest.vecA = physMesh[i]
+                closest.vecB = physMesh[i+1]
+                closest.vecC = physMesh[i+2]
+                closest.intersection = intersects
+                closest.normal = physTargetEnt:localToWorldVector(interpNormal)
+                closest.distance = sqrDist
+            end
+            
+        end
+    end
+    
+    if not isValid(physTargetEnt) or not physTargetEnt:isValid() or not closest.vecA.pos then return end -- The previous computation took a bit so double check it's still a thing.
+    p1:setPos(physTargetEnt:localToWorld(closest.vecA.pos))
+    p1:setAngles(physTargetEnt:localToWorldVector(closest.vecA.normal):getAngle())
+    p2:setPos(physTargetEnt:localToWorld(closest.vecB.pos))
+    p2:setAngles(physTargetEnt:localToWorldVector(closest.vecB.normal):getAngle())
+    p3:setPos(physTargetEnt:localToWorld(closest.vecC.pos))
+    p3:setAngles(physTargetEnt:localToWorldVector(closest.vecC.normal):getAngle())
+    
+    local outDirection = rayDirection-Vector(2)*closest.normal*Vector(rayDirection:dot(closest.normal))
+    
+    --print(outDirection)
+    bounce:updatePos(closest.intersection, closest.intersection + (outDirection * traceDistance))
+    bounce:think()
+    
+    l1:updatePos(p1:getPos(), p2:getPos())
+    l2:updatePos(p2:getPos(), p3:getPos())
+    l3:updatePos(p3:getPos(), p1:getPos())
+    l1:think()
+    l2:think()
+    l3:think()
+    --printTable(intersections)
+    --printTable(physMesh)
+end)
