@@ -67,7 +67,7 @@ local function getComputeWorker(startPosition, startDirection)
                     --break
                 end
             end
-            if isValid(ray["Entity"]) and ray["Entity"]:isValidPhys() then
+            if isValid(ray["Entity"]) and ray["Entity"]:getPhysicsObject():isValid() then
                 targetEnt = ray["Entity"]
                 targetPos = ray["HitPos"]
                 rayOrigin = ray["StartPos"]
