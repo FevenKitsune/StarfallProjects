@@ -4,6 +4,7 @@
 
 local BOUNCE_ONLY_ON_VALID_MATERIAL = false
 local VALID_MATERIAL = "WTP/paint_2"
+local DEBUG_VISUALIZATION = false
 
 local maxCPU = cpuMax() * (SERVER and 0.5 or 0.5)
 local Laser = class("Laser")
@@ -151,28 +152,44 @@ local function computeBarycentric(point, vertexA, vertexB, vertexC)
     return Vector(u, v, w)
 end
 
-local p1 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
-p1:setColor(Color(255, 0, 0))
-p1:suppressEngineLighting(true)
-local l1 = Laser:new(Vector(0), Vector(0))
-local p2 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
-p2:setColor(Color(0, 255, 0))
-p2:suppressEngineLighting(true)
-local l2 = Laser:new(Vector(0), Vector(0))
-local p3 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
-p3:setColor(Color(0, 0, 255))
-p3:suppressEngineLighting(true)
-local l3 = Laser:new(Vector(0), Vector(0))
+if DEBUG_VISUALIZATION then
+    p1 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+    p1:setColor(Color(255, 0, 0))
+    p1:suppressEngineLighting(true)
+    l1 = Laser:new(Vector(0), Vector(0))
+    p2 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+    p2:setColor(Color(0, 255, 0))
+    p2:suppressEngineLighting(true)
+    l2 = Laser:new(Vector(0), Vector(0))
+    p3 = hologram.create(chip():getPos(), Angle(), "models/sprops/misc/bone_from_x.mdl", Vector(-0.4))
+    p3:setColor(Color(0, 0, 255))
+    p3:suppressEngineLighting(true)
+    l3 = Laser:new(Vector(0), Vector(0))
+end
 
 local bounce = Laser:new(Vector(0), Vector(0))
+
+local physicsCache = {}
+local function getPhysicsMesh(ent)
+    local id = tostring(ent)
+    if physicsCache[id] == nil then
+        print("New object " .. id .. " found... caching!")
+        physicsCache[id] = {}
+        physicsCache[id].physicsObject = ent:getPhysicsObject()
+        physicsCache[id].physicsMesh = physicsCache[id].physicsObject:getMesh()
+        mesh.generateNormals(physicsCache[id].physicsMesh, nil, 0.523599)
+    end
+    
+    return physicsCache[id]
+end
 
 timer.create("SurfaceInfo", 0.05, 0, function()
     -- https://en.wikipedia.org/wiki/Gouraud_shading
     -- https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/shading-normals.html
     if not isValid(targetEnt) then return end
-    local physTargetEnt = targetEnt:getPhysicsObject()
-    local physMesh = physTargetEnt:getMesh()
-    mesh.generateNormals(physMesh, nil, 0.523599)
+    local physicsData = getPhysicsMesh(targetEnt)
+    local physTargetEnt = physicsData.physicsObject
+    local physMesh = physicsData.physicsMesh
     
     local intersections = {}
     local closest = {vecA = Vector(), vecB = Vector(), vecC = Vector(), intersection = Vector(), normal = Vector(), distance = 999999999}
@@ -202,12 +219,14 @@ timer.create("SurfaceInfo", 0.05, 0, function()
     end
     
     if not isValid(physTargetEnt) or not physTargetEnt:isValid() or not closest.vecA.pos then return end -- The previous computation took a bit so double check it's still a thing.
-    p1:setPos(physTargetEnt:localToWorld(closest.vecA.pos))
-    p1:setAngles(physTargetEnt:localToWorldVector(closest.vecA.normal):getAngle())
-    p2:setPos(physTargetEnt:localToWorld(closest.vecB.pos))
-    p2:setAngles(physTargetEnt:localToWorldVector(closest.vecB.normal):getAngle())
-    p3:setPos(physTargetEnt:localToWorld(closest.vecC.pos))
-    p3:setAngles(physTargetEnt:localToWorldVector(closest.vecC.normal):getAngle())
+    if DEBUG_VISUALIZATION then
+        p1:setPos(physTargetEnt:localToWorld(closest.vecA.pos))
+        p1:setAngles(physTargetEnt:localToWorldVector(closest.vecA.normal):getAngle())
+        p2:setPos(physTargetEnt:localToWorld(closest.vecB.pos))
+        p2:setAngles(physTargetEnt:localToWorldVector(closest.vecB.normal):getAngle())
+        p3:setPos(physTargetEnt:localToWorld(closest.vecC.pos))
+        p3:setAngles(physTargetEnt:localToWorldVector(closest.vecC.normal):getAngle())
+    end
     
     local outDirection = rayDirection-Vector(2)*closest.normal*Vector(rayDirection:dot(closest.normal))
     
@@ -215,12 +234,14 @@ timer.create("SurfaceInfo", 0.05, 0, function()
     bounce:updatePos(closest.intersection, closest.intersection + (outDirection * traceDistance))
     bounce:think()
     
-    l1:updatePos(p1:getPos(), p2:getPos())
-    l2:updatePos(p2:getPos(), p3:getPos())
-    l3:updatePos(p3:getPos(), p1:getPos())
-    l1:think()
-    l2:think()
-    l3:think()
+    if DEBUG_VISUALIZATION then
+        l1:updatePos(p1:getPos(), p2:getPos())
+        l2:updatePos(p2:getPos(), p3:getPos())
+        l3:updatePos(p3:getPos(), p1:getPos())
+        l1:think()
+        l2:think()
+        l3:think()
+    end
     --printTable(intersections)
     --printTable(physMesh)
 end)
