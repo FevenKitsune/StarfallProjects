@@ -4,7 +4,7 @@
 
 local BOUNCE_ONLY_ON_VALID_MATERIAL = false
 local VALID_MATERIAL = "WTP/paint_2"
-local DEBUG_VISUALIZATION = false
+local DEBUG_VISUALIZATION = true
 
 local maxCPU = cpuMax() * (SERVER and 0.5 or 0.5)
 local Laser = class("Laser")
@@ -191,7 +191,6 @@ timer.create("SurfaceInfo", 0.05, 0, function()
     local physTargetEnt = physicsData.physicsObject
     local physMesh = physicsData.physicsMesh
     
-    local intersections = {}
     local closest = {vecA = Vector(), vecB = Vector(), vecC = Vector(), intersection = Vector(), normal = Vector(), distance = 999999999}
     for i = 1, #physMesh, 3 do
         local vecA = physTargetEnt:localToWorld(physMesh[i].pos)
@@ -199,13 +198,10 @@ timer.create("SurfaceInfo", 0.05, 0, function()
         local vecC = physTargetEnt:localToWorld(physMesh[i+2].pos)
         local intersects = rayIntersectsTriangle(rayOrigin, rayDirection, vecA, vecB, vecC)
         if intersects then
-            local center = (vecA + vecB + vecC) / 3
-            local sqrDist = center:getDistanceSqr(rayOrigin)
+            local sqrDist = center:getDistanceSqr(intersects)
             local barycentric = computeBarycentric(intersects, vecA, vecB, vecC)
             local interpNormal = barycentric.x * physMesh[i].normal + barycentric.y * physMesh[i+1].normal + barycentric.z * physMesh[i+2].normal
             interpNormal:normalize()
-            --printConsole(intersects)
-            table.insert(intersections, {vecA, vecB, vecC, center, sqrDist, barycentric, interpNormal})
             if sqrDist < closest.distance then
                 closest.vecA = physMesh[i]
                 closest.vecB = physMesh[i+1]
