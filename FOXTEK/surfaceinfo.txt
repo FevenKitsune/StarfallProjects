@@ -198,7 +198,7 @@ timer.create("SurfaceInfo", 0.05, 0, function()
         local vecC = physTargetEnt:localToWorld(physMesh[i+2].pos)
         local intersects = rayIntersectsTriangle(rayOrigin, rayDirection, vecA, vecB, vecC)
         if intersects then
-            local sqrDist = center:getDistanceSqr(intersects)
+            local sqrDist = intersects:getDistanceSqr(rayOrigin)
             local barycentric = computeBarycentric(intersects, vecA, vecB, vecC)
             local interpNormal = barycentric.x * physMesh[i].normal + barycentric.y * physMesh[i+1].normal + barycentric.z * physMesh[i+2].normal
             interpNormal:normalize()
