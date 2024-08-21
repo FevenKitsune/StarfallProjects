@@ -170,10 +170,12 @@ end
 local bounce = Laser:new(Vector(0), Vector(0))
 
 local physicsCache = {}
+local cacheSize = 0
 local function getPhysicsMesh(ent)
     local id = tostring(ent)
     if physicsCache[id] == nil then
-        print("New object " .. id .. " found... caching!")
+        cacheSize = cacheSize + 1
+        print("New object " .. id .. " found... caching! Models: " .. tostring(cacheSize))
         physicsCache[id] = {}
         physicsCache[id].physicsObject = ent:getPhysicsObject()
         physicsCache[id].physicsMesh = physicsCache[id].physicsObject:getMesh()
@@ -183,7 +185,7 @@ local function getPhysicsMesh(ent)
     return physicsCache[id]
 end
 
-timer.create("SurfaceInfo", 0.05, 0, function()
+timer.create("SurfaceInfo", 0.1, 0, function()
     -- https://en.wikipedia.org/wiki/Gouraud_shading
     -- https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/shading-normals.html
     if not isValid(targetEnt) then return end
@@ -191,9 +193,10 @@ timer.create("SurfaceInfo", 0.05, 0, function()
     local physTargetEnt = physicsData.physicsObject
     local physMesh = physicsData.physicsMesh
     
-    local closest = {vecA = Vector(), vecB = Vector(), vecC = Vector(), intersection = Vector(), normal = Vector(), distance = 999999999}
+    local closest = {vecA = Vector(), vecB = Vector(), vecC = Vector(), intersection = Vector(), barycentric = Vector(), normal = Vector(), distance = 999999999}
     for i = 1, #physMesh, 3 do
         local vecA = physTargetEnt:localToWorld(physMesh[i].pos)
+        
         local vecB = physTargetEnt:localToWorld(physMesh[i+1].pos)
         local vecC = physTargetEnt:localToWorld(physMesh[i+2].pos)
         local intersects = rayIntersectsTriangle(rayOrigin, rayDirection, vecA, vecB, vecC)
@@ -207,6 +210,7 @@ timer.create("SurfaceInfo", 0.05, 0, function()
                 closest.vecB = physMesh[i+1]
                 closest.vecC = physMesh[i+2]
                 closest.intersection = intersects
+                closest.barycentric = barycentric
                 closest.normal = physTargetEnt:localToWorldVector(interpNormal)
                 closest.distance = sqrDist
             end
@@ -228,6 +232,7 @@ timer.create("SurfaceInfo", 0.05, 0, function()
     
     --print(outDirection)
     bounce:updatePos(closest.intersection, closest.intersection + (outDirection * traceDistance))
+    bounce.Line:setColor( Color(closest.barycentric.x * 255, closest.barycentric.y * 255, closest.barycentric.z * 255) )
     bounce:think()
     
     if DEBUG_VISUALIZATION then
