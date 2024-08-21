@@ -1,0 +1,25 @@
+--@name TableRotation
+--@author Feven
+--@client
+
+local letters = {"a", "b", "c", "d", "e"}
+
+function table.rotateRight(tbl)
+    local item = table.remove(tbl)
+    table.insert(tbl, 1, item)
+end
+
+function table.rotateLeft(tbl)
+    local item = table.remove(tbl, 1)
+    table.insert(tbl, item)
+end
+
+printTable(letters)
+
+table.rotateRight(letters)
+
+printTable(letters)
+
+table.rotateLeft(letters)
+
+printTable(letters)
