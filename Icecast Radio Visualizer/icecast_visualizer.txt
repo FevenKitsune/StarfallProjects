@@ -201,9 +201,11 @@ if CLIENT then
         end
     end)
     
+--[[
     hook.add("think", "renderlight", function()
         fxlight:setPos(chip():getPos() + Vector(100, 0, 65))
         fxlight:setSize(fxbright * 4096)
         fxlight:draw()
     end)
+]]
 end
