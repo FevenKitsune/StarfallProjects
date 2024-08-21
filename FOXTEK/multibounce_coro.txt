@@ -2,11 +2,10 @@
 --@author Feven Kitsune
 --@client
 
-local BOUNCE_ONLY_ON_VALID_MATERIAL = true
+local BOUNCE_ONLY_ON_VALID_MATERIAL = false
 local VALID_MATERIAL = "WTP/paint_2"
 
-local maxCPU = cpuMax() * (SERVER and 0.7 or 0.7)
-
+local maxCPU = cpuMax() * (SERVER and 0.1 or 0.1)
 local Laser = class("Laser")
 function Laser:initialize(startPos, endPos)
     self.startPos = startPos
@@ -34,7 +33,7 @@ function Laser:updatePos(s, e)
     self.endPos = e
 end
 
-local traceDistance = 1024
+local traceDistance = 10000
 
 lasers = {}
 local c = 200
@@ -50,11 +49,10 @@ local function getComputeWorker(startPosition, startDirection)
         for i = 1, c do
             if cpuAverage() > maxCPU then coroutine.yield() end
             local ray = trace.line(position, position + (direction * traceDistance), chip(), MASK.SOLID, COLLISION_GROUP.PASSABLE_DOOR) --MASK.NPCWORLDSTATIC
-            local inDirection = ray["HitPos"] - position
-            inDirection:normalize()
-            local outDirection = inDirection-Vector(2)*ray["HitNormal"]*Vector(inDirection:dot(ray["HitNormal"]))
+            local outDirection = ray["Normal"]-Vector(2)*ray["HitNormal"]*Vector(ray["Normal"]:dot(ray["HitNormal"]))
             lasers[i]:updatePos(position, ray["HitPos"])
-            lasers[i].Line:setColor(Color(i, 0, 0))
+            --lasers[i].Line:setColor(Color(i, 0, 0))
+            lasers[i].Line:setColor(Color(255, 0, 0))
             lasers[i]:think()
             position = ray["HitPos"]
             direction = outDirection
