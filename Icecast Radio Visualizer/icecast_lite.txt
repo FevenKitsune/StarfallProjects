@@ -65,8 +65,7 @@ else
     end
     
     render.createRenderTarget("fftTarget")
-    hook.add("renderoffscreen", "renderFFT", function()
-        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+    local function renderFFT()
         if cpuAverage() > maxCPU then return end
         render.selectRenderTarget("fftTarget")
         
@@ -75,10 +74,9 @@ else
             --render.setColor(Color(255))
             render.drawRectFast(i-1, 0, 1, 1)
         end
-    end)
+    end
     
-    hook.add("drawhud", "renderHUD", function()
-        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+    local function renderHUD()
         if not isValid(gsnd) or not gsnd:isValid() then return end
         
         render.setRenderTargetTexture("fftTarget")
@@ -89,8 +87,7 @@ else
         --render.setColor(Color(255, 255, 255, 120))
         render.drawTexturedRect(0, ry-height, 1024/((#fft/div)-1)*rx, 1024*height)
         local width = rx / (#fft/div)
-        
-    end)
+    end
     
     hook.add("hudconnected", "autoRequestPerms", function()
         if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then
@@ -103,6 +100,8 @@ else
     hook.add("hudconnected", "startPlayingMusic", function()
         if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
             hook.add("tick", "calculateFFT", calculateFFT)
+            hook.add("drawhud", "renderHUD", renderHUD)
+            hook.add("renderoffscreen", "renderFFT", renderFFT)
             connectAudio()
         end
     end)
@@ -110,12 +109,16 @@ else
     hook.add("permissionrequest", "permission", function()
         if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
             hook.add("tick", "calculateFFT", calculateFFT)
+            hook.add("drawhud", "renderHUD", renderHUD)
+            hook.add("renderoffscreen", "renderFFT", renderFFT)
             connectAudio()
         end
     end)
     
     hook.add("huddisconnected", "stopMusic", function()
         hook.remove("tick", "calculateFFT")
+        hook.remove("drawhud", "renderHUD")
+        hook.remove("renderoffscreen", "renderFFT")
         disconnectAudio()
     end)
     
