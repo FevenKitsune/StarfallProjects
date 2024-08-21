@@ -1,0 +1,128 @@
+--@name Icecast Lite
+--@author Feven
+--@shared
+
+PREFIX = ">"
+URL = "http://198.211.107.63:8000/steam"
+
+local maxCPU = cpuMax() * (SERVER and 0.1 or 0.1)
+
+if SERVER then
+    local hud = prop.createComponent(chip():getPos() + Vector(0,0,1), Angle(), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
+    hud:linkComponent(chip())
+    constraint.weld(hud, chip())
+    
+    local dispatch = {
+        ["vol"] = function(cmd, ply)
+            local vol = tonumber(table.remove(cmd, 1))
+            net.start("changeVol")
+                net.writeFloat(vol)
+            net.send(ply)
+            return true
+        end,
+        ["disconnect"] = function(cmd, ply)
+            net.start("disconnect")
+            net.send(ply)
+            return true
+        end
+    }
+     
+    hook.add("PlayerSay", "CommandProcessor", function(ply, txt, _)
+        local cmd = string.explode(" ", txt)
+        local command_key = table.remove(cmd, 1)
+        command_key = string.gsub(command_key, PREFIX, "", 1)
+        
+        -- Lookup and execute the command
+        local action = dispatch[command_key]
+        if action and action(cmd, ply) then return "" end
+    end)
+else
+    local gsnd
+    local volume
+
+    local function disconnectAudio()
+        if not isValid(gsnd) or not gsnd:isValid() then return end
+        gsnd:stop()
+    end
+    
+    local function connectAudio()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return nil end
+        
+        bass.loadURL(URL, "noblock", function(snd, err, errtxt)
+            if not isValid(snd) then return end
+            gsnd = snd
+            gsnd:play()
+        end)
+        
+        return true
+    end
+    
+    local fft = {}
+    local div = 6 -- only get #fft/div elements to process. cuts off higher frequencies.
+    local function calculateFFT()
+        if not isValid(gsnd) or not gsnd:isValid() then return end
+        fft = gsnd:getFFT(1)
+    end
+    
+    render.createRenderTarget("fftTarget")
+    hook.add("renderoffscreen", "renderFFT", function()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+        if cpuAverage() > maxCPU then return end
+        render.selectRenderTarget("fftTarget")
+        
+        for i = 1, #fft/div do
+            render.setColor(Color(i/(#fft/div)*360, 1, math.log10(fft[i]+1)*60):hsvToRGB())
+            --render.setColor(Color(255))
+            render.drawRectFast(i-1, 0, 1, 1)
+        end
+    end)
+    
+    hook.add("drawhud", "renderHUD", function()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then return end
+        if not isValid(gsnd) or not gsnd:isValid() then return end
+        
+        render.setRenderTargetTexture("fftTarget")
+        render.setFilterMin(1)
+        render.setFilterMag(1)
+        local rx, ry = render.getResolution()
+        local height = 8
+        --render.setColor(Color(255, 255, 255, 120))
+        render.drawTexturedRect(0, ry-height, 1024/((#fft/div)-1)*rx, 1024*height)
+        local width = rx / (#fft/div)
+        
+    end)
+    
+    hook.add("hudconnected", "autoRequestPerms", function()
+        if not hasPermission("bass.loadURL", URL) or not hasPermission("bass.play2D") then
+            setupPermissionRequest({"bass.loadURL", "bass.play2D"}, "URL sounds from external sites and 2d sounds")
+            sendPermissionRequest()
+        end
+        hook.remove("hudconnected", "autoRequestPerms") -- Starfall only lets you request perms once, so remove the hook after the first time
+    end)
+    
+    hook.add("hudconnected", "startPlayingMusic", function()
+        if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+            hook.add("tick", "calculateFFT", calculateFFT)
+            connectAudio()
+        end
+    end)
+    
+    hook.add("permissionrequest", "permission", function()
+        if hasPermission("bass.loadURL", URL) and hasPermission("bass.play2D") then
+            hook.add("tick", "calculateFFT", calculateFFT)
+            connectAudio()
+        end
+    end)
+    
+    hook.add("huddisconnected", "stopMusic", function()
+        hook.remove("tick", "calculateFFT")
+        disconnectAudio()
+    end)
+    
+    net.receive("disconnect", function() disconnectAudio() end)
+    net.receive("changeVol", function()
+        if not isValid(gsnd) or not gsnd:isValid() then return end
+        volume = net.readFloat()
+        gsnd:setVolume(volume)
+    end)
+end
