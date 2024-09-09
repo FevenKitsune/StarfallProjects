@@ -6,12 +6,12 @@ local new_library = {
     {
         ["name"] = "I'm Gonna Be (500 Miles)",
         ["artist"] = "The Proclaimers",
-        ["url"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1"
+        ["url"] = ""
     },
     {
         ["name"] = "Don't Stop Me Now",
         ["artist"] = "Queen",
-        ["url"] = "https://dl.dropboxusercontent.com/s/8yrv2blu9fn8ibb/dontstopmenow.ogg?dl=1"
+        ["url"] = ""
     }
 }
 

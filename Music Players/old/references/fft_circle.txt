@@ -4,7 +4,7 @@
 
 local n = 128
 local fft = {}
-local url = 'https://dl.dropboxusercontent.com/s/m406psq5pgu6txx/Mabinogi%20Relaxing%20%26%20Memorial%20BGM%20Collection.ogg?dl=1'
+local url = ''
 local mul = 100
 local fftmul=500
 local NumSegment = 2

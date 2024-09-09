@@ -5,23 +5,6 @@
 
 local library = {
     {
-        ["name"] = "500 Miles",
-        ["url"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1"
-    ["500miles"] = "https://dl.dropboxusercontent.com/s/jbd8yh16743gntf/500miles.ogg?dl=1",
-    ["dontstopmenow"] = "https://dl.dropboxusercontent.com/s/8yrv2blu9fn8ibb/dontstopmenow.ogg?dl=1",
-    ["tank"] = "https://dl.dropboxusercontent.com/s/twlfi4v0265amhj/tank.ogg?dl=1",
-    ["bananaman"] = "https://dl.dropboxusercontent.com/s/rqcos9qo0d5z8kv/tally-hall-banana-man.ogg?dl=1",
-    ["gettingoverit"] = "https://dl.dropboxusercontent.com/s/1jyl7inyqz509qi/gettingoverit.ogg?dl=1",
-    ["finale"] = "https://dl.dropboxusercontent.com/s/h7j0vhlolykls65/23%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Finale.ogg?dl=1",
-    ["sam01"] = "https://dl.dropboxusercontent.com/s/ku6zhzy80p2gkt5/01%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Intro%20Song%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
-    ["sam02"] = "https://dl.dropboxusercontent.com/s/b4u676iys16nqq4/02%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Where%20Did%20You%20Come%20From%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
-    ["sam03"] = "https://dl.dropboxusercontent.com/s/zft9wqqh8mh39n4/03%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Cave%20Ballad%20%28Feat.%20Paul%20Dano%29.ogg?dl=1",
-    ["sam04"] = "https://dl.dropboxusercontent.com/s/o2kqto1h0v73gmj/04%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Hank%20Drinks.ogg?dl=1",
-    ["sam05"] = "https://dl.dropboxusercontent.com/s/kpnvjevovfuh6ki/05%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20History%20Of%20The%20Universe%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=1",
-    ["sam06"] = "https://dl.dropboxusercontent.com/s/182lzzilbz7ud86/06%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20Fetishes%20%28Feat.%20Daniel%20Radcliffe%29.ogg?dl=1",
-    ["sam07"] = "https://www.dropbox.com/s/eb5w0cirljtp0we/07%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20When%20I%20Think%20About%20Mom%20%28Feat.%20Paul%20Dano%20And%20Daniel%20Radcliffe%29.ogg?dl=1",
-    ["abetterway"] = "https://dl.dropboxusercontent.com/s/8q9vo71l886tmo0/24%20-%20Andy%20Hull%20%26%20Robert%20McDowell%20-%20A%20Better%20Way.ogg?dl=1"
-    
 }
 
 if SERVER then
