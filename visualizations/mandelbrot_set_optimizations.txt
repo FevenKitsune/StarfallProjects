@@ -14,7 +14,8 @@ local yPos = 0.657000024870588
 
 -- Initialization
 local drawRoutines = {}
-local maxCPU = cpuMax() * (SERVER and 0.69 or 0.7)
+local maxCPU = math.min(cpuMax() * (SERVER and 0.69 or 0.7), 0.015)
+
 local startTime = timer.systime()
 
 local function drawRoutine(zoom) -- since this isn't going to be distributed for now, I don't need to worry about chunks.
