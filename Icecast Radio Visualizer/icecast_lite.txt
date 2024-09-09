@@ -1,16 +1,29 @@
 --@name Icecast Lite
 --@author Feven
 --@shared
+--@model models/dav0r/thruster.mdl
 
 PREFIX = ">"
 URL = "http://198.211.107.63:8000/steam"
 
-local maxCPU = cpuMax() * (SERVER and 0.1 or 0.1)
+local maxCPU = math.min(cpuMax() * (SERVER and 0.1 or 0.1), 0.006)
 
 if SERVER then
-    local hud = prop.createComponent(chip():getPos() + Vector(0,0,1), Angle(), "starfall_hud", "models/bull/dynamicbutton.mdl", true)
+    chip():setColor(Color(57, 0, 77))
+    chip():setMaterial("models/wireframe")
+    
+    local hud = prop.createComponent(chip():getPos() + chip():getUp() * 25, Angle(), "starfall_hud", "models/hunter/misc/sphere025x025.mdl", true)
+    hud:setColor(Color(204, 51, 255))
+    hud:setMaterial("models/wireframe")
     hud:linkComponent(chip())
-    constraint.weld(hud, chip())
+    hud:setParent(chip())
+    
+    hook.add("tick", "", function()
+        local toolgun, reason = hasPermission("entities.canTool", hud)
+        if not toolgun then return end
+        hud:setPos(Vector(0, 0, math.sin(timer.systime())*2+25))
+        hud:setAngles(Angle(0, timer.systime()*60, 0))
+    end)
     
     local dispatch = {
         ["vol"] = function(cmd, ply)
@@ -58,7 +71,7 @@ else
     end
     
     local fft = {}
-    local div = 6 -- only get #fft/div elements to process. cuts off higher frequencies.
+    local div = 8 -- only get #fft/div elements to process. cuts off higher frequencies.
     local function calculateFFT()
         if not isValid(gsnd) or not gsnd:isValid() then return end
         fft = gsnd:getFFT(1)
