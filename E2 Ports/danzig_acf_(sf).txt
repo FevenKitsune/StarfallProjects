@@ -254,7 +254,7 @@ hook.add("tick", "systems", function()
     end
     
     if Shift and not Shift then -- The original code here makes zero fucking sense. Garbage code. Doesn't even do anything.
-        -- ASKED NEDSTER apparently this is supposed to toggle the camera controller. So I assume this is just a toggle-on, toggle-off sitch?
+        -- ASKED, apparently this is supposed to toggle the camera controller. So I assume this is just a toggle-on, toggle-off sitch?
         Cam = (Cam == 0 and 1 or 0)
     end
     

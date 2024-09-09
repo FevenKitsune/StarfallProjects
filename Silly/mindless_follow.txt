@@ -4,7 +4,7 @@
 
 if player() != owner() then return end
 
-local target_name = "Nedster"
+local target_name = ""
 setName("Mindlessly following: " .. target_name)
 local target = find.playersByName(target_name)[1]
 
